@@ -1,0 +1,2 @@
+VIDEOGAME;1;Call of Juarez;25000.0;10;Action;PS4
+CONSOLE;2;Play Station 4;1250000.0;8;Play Station;Slim
