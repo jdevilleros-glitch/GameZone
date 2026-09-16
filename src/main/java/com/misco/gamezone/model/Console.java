@@ -37,7 +37,7 @@ public class Console extends Product {
 
     @Override
     public String getProductType() {
-        return "Console";
+        return "CONSOLE";
     }
 
 }

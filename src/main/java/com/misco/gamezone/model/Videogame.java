@@ -37,7 +37,7 @@ public class Videogame extends Product {
 
     @Override
     public String getProductType() {
-        return "Videogame";
+        return "VIDEOGAME";
     }
 
 }
