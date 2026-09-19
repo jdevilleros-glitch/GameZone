@@ -16,6 +16,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 
 /**
+ * Provides file persistence operations to all products. It loads ad saves
+ * product data via file.
  *
  * @author USUARIO
  */
@@ -23,10 +25,20 @@ public class ProductDAO {
 
     private final String filePath;
 
+    /**
+     * Creates a product DAO using the specified file path.
+     *
+     * @param filePath path of the products file
+     */
     public ProductDAO(String filePath) {
         this.filePath = filePath;
     }
 
+    /**
+     * Loads the products stored in the products file.
+     *
+     * @return a list containing the stored products
+     */
     public List<Product> loadProducts() {
         List<Product> products = new ArrayList<>();
 
@@ -89,6 +101,11 @@ public class ProductDAO {
         return products;
     }
 
+    /**
+     * Saves the specified products to the products file.
+     *
+     * @param products list of products to save
+     */
     public void saveProducts(List<Product> products) {
         Path path = Path.of(filePath);
 
