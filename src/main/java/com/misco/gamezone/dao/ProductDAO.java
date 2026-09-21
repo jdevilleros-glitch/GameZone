@@ -148,7 +148,7 @@ public class ProductDAO {
             }
 
         } catch (IOException e) {
-            System.out.println("fakof");
+            System.out.println("Error saving products file");
         }
     }
 }
