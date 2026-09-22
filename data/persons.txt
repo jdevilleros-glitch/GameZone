@@ -1,0 +1,3 @@
+CUSTOMER;C001;Ana Perez;3001234567;ana@email.com
+SELLER;S001;Pedro Lopez;3011234567;EMP001
+CUSTOMER;C001;Maria Lopez;3009876543;maria@email.com
