@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * Manages the persistence of customers and sellers in a text file. Provides
+ * operations to load and save person data.
  *
  * @author USUARIO
  */
@@ -23,10 +25,20 @@ public class PersonDAO {
 
     private final String filePath;
 
+    /**
+     * Creates a PersonDAO using the specified file path.
+     *
+     * @param filePath the path of the file used to store person data
+     */
     public PersonDAO(String filePath) {
         this.filePath = filePath;
     }
 
+    /**
+     * Loads customers and sellers from the data file.
+     *
+     * @return a list containing the persons loaded from the file
+     */
     public List<Person> loadPersons() {
         List<Person> persons = new ArrayList<>();
 
@@ -77,6 +89,12 @@ public class PersonDAO {
 
     }
 
+    /**
+     * Saves the list of persons in the data file. Customers and sellers are
+     * stored according to their specific type.
+     *
+     * @param persons the list of persons to save
+     */
     public void savePersons(List<Person> persons) {
         Path path = Path.of(filePath);
 
