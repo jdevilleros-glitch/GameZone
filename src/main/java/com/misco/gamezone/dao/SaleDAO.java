@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Date;
 
 /**
+ * Handles the persistence of sale data in a text file. It loads and saves sales
+ * and reconstructs their relationships with customers, sellers, and products.
  *
  * @author USUARIO
  */
@@ -30,12 +32,26 @@ public class SaleDAO {
     private ProductDAO productDAO;
     private PersonDAO personDAO;
 
+    /**
+     * Creates a SaleDAO with the file used to store sales and the DAOs required
+     * to retrieve products and persons.
+     *
+     * @param filePath path of the sales data file
+     * @param productDAO DAO used to retrieve product information
+     * @param personDAO DAO used to retrieve customer and seller information
+     */
     public SaleDAO(String filePath, ProductDAO productDAO, PersonDAO personDAO) {
         this.filePath = filePath;
         this.productDAO = productDAO;
         this.personDAO = personDAO;
     }
 
+    /**
+     * Loads the sales stored in the data file. Customer, seller, and product
+     * identifiers are matched with their corresponding objects.
+     *
+     * @return a list containing the loaded sales
+     */
     public List<Sale> loadSales() {
         List<Sale> sales = new ArrayList<>();
         List<Person> persons = personDAO.loadPersons();
@@ -112,6 +128,12 @@ public class SaleDAO {
         return sales;
     }
 
+    /**
+     * Saves the provided list of sales to the data file. Each sale is stored
+     * with its identifier, date, customer, seller, and product identifiers.
+     *
+     * @param sales list of sales to save
+     */
     public void saveSales(List<Sale> sales) {
         Path path = Path.of(filePath);
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");

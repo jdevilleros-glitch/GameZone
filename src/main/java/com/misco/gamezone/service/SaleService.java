@@ -17,6 +17,9 @@ import java.util.Date;
 import java.util.List;
 
 /**
+ * Provides the business logic for managing sales in GameZone. It allows sales
+ * to be registered and provides operations to retrieve sales and purchase
+ * histories.
  *
  * @author USUARIO
  */
@@ -27,6 +30,13 @@ public class SaleService {
     private PersonDAO personDAO;
     private ProductDAO productDAO;
 
+    /**
+     * Creates a SaleService and loads the existing sales.
+     *
+     * @param saleDAO DAO used to load and save sales
+     * @param personDAO DAO used to retrieve customers and sellers
+     * @param productDAO DAO used to retrieve products
+     */
     public SaleService(SaleDAO saleDAO, PersonDAO personDAO, ProductDAO productDAO) {
         this.saleDAO = saleDAO;
         this.personDAO = personDAO;
@@ -34,6 +44,17 @@ public class SaleService {
         this.sales = saleDAO.loadSales();
     }
 
+    /**
+     * Registers a new sale using an existing customer, seller, and one or more
+     * existing products. The sale is saved automatically after being
+     * registered.
+     *
+     * @param saleId unique identifier of the sale
+     * @param date date when the sale is made
+     * @param customerId identifier of the customer
+     * @param sellerId identifier of the seller
+     * @param productIds identifiers of the products included in the sale
+     */
     public void registerSale(String saleId, Date date, String customerId, String sellerId, List<String> productIds) {
         List<Person> persons = personDAO.loadPersons();
         Customer customer = null;
@@ -72,32 +93,49 @@ public class SaleService {
         saleDAO.saveSales(sales);
 
     }
-    
-    public List<Sale> listSales(){
+
+    /**
+     * Returns all registered sales.
+     *
+     * @return a list containing all sales
+     */
+    public List<Sale> listSales() {
         return new ArrayList<>(sales);
     }
 
-    public List<Sale> getPurchasesByCustomer(String customerId){
+    /**
+     * Returns the purchase history of a specific customer.
+     *
+     * @param customerId identifier of the customer
+     * @return a list containing the sales associated with the customer
+     */
+    public List<Sale> getPurchasesByCustomer(String customerId) {
         List<Sale> customerSales = new ArrayList<>();
-        
-        for (Sale sale : sales){
-            if (sale.getCustomer().getId().equals(customerId)){
+
+        for (Sale sale : sales) {
+            if (sale.getCustomer().getId().equals(customerId)) {
                 customerSales.add(sale);
             }
         }
-        
+
         return customerSales;
     }
-    
-    public List<Sale> getSalesBySeller(String sellerId){
-        List <Sale> sellerSales = new ArrayList<>();
-        
-        for (Sale sale : sales){
-            if (sale.getSeller().getId().equals(sellerId)){
+
+    /**
+     * Returns the sales history of a specific seller.
+     *
+     * @param sellerId identifier of the seller
+     * @return a list containing the sales associated with the seller
+     */
+    public List<Sale> getSalesBySeller(String sellerId) {
+        List<Sale> sellerSales = new ArrayList<>();
+
+        for (Sale sale : sales) {
+            if (sale.getSeller().getId().equals(sellerId)) {
                 sellerSales.add(sale);
             }
         }
-       
+
         return sellerSales;
     }
 }
