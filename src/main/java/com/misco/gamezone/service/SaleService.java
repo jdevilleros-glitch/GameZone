@@ -54,8 +54,9 @@ public class SaleService {
      * @param customerId identifier of the customer
      * @param sellerId identifier of the seller
      * @param productIds identifiers of the products included in the sale
+     * @return true if the sale was successfully registered, false otherwise
      */
-    public void registerSale(String saleId, Date date, String customerId, String sellerId, List<String> productIds) {
+    public boolean registerSale(String saleId, Date date, String customerId, String sellerId, List<String> productIds) {
         List<Person> persons = personDAO.loadPersons();
         Customer customer = null;
         Seller seller = null;
@@ -81,7 +82,7 @@ public class SaleService {
                 if (product.getId().equals(productId)) {
 
                     if (product.getStock() <= 0) {
-                        return;
+                        return false;
                     }
 
                     productsSold.add(product);
@@ -91,11 +92,11 @@ public class SaleService {
         }
 
         if (productsSold.size() != productIds.size()) {
-            return;
+            return false;
         }
 
         if (customer == null || seller == null || productsSold.isEmpty()) {
-            return;
+            return false;
         }
 
         for (Product product : productsSold) {
@@ -107,6 +108,7 @@ public class SaleService {
         Sale sale = new Sale(saleId, date, productsSold, customer, seller);
         sales.add(sale);
         saleDAO.saveSales(sales);
+        return true;
 
     }
 

@@ -386,15 +386,19 @@ public class Menu {
 
         } while (!productId.equals("0"));
 
-        saleService.registerSale(
+        boolean registered = saleService.registerSale(
                 saleId,
                 new Date(),
                 customerId,
                 sellerId,
                 productIds
         );
-
-        System.out.println("Sale operation completed.");
+        if (registered){
+        System.out.println("Sale operation completed.");    
+        } else {
+            System.out.println("Sale could not be registered. Check the entered data.");
+        }
+        
     }
 
     /**
