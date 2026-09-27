@@ -19,9 +19,9 @@ public abstract class Person {
     /**
      * Creates a person with the specified information.
      *
-     * @param name
-     * @param id
-     * @param cellphone
+     * @param name the name of the person
+     * @param id the identification code of the person
+     * @param cellphone the phone number of the person
      */
     public Person(String name, String id, String cellphone) {
         this.name = name;

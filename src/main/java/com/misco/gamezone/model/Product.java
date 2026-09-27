@@ -20,10 +20,10 @@ public abstract class Product {
     /**
      * Creates a product with specific information.
      *
-     * @param id
-     * @param name
-     * @param price
-     * @param stock
+     * @param id name unique identifier of the product
+     * @param name name of the product
+     * @param price price of the product
+     * @param stock available quantity of the product
      */
     public Product(String id, String name, double price, int stock) {
         this.id = id;
