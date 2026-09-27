@@ -79,15 +79,31 @@ public class SaleService {
             for (Product product : products) {
 
                 if (product.getId().equals(productId)) {
+
+                    if (product.getStock() <= 0) {
+                        return;
+                    }
+
                     productsSold.add(product);
                     break;
                 }
             }
-
         }
+
+        if (productsSold.size() != productIds.size()) {
+            return;
+        }
+
         if (customer == null || seller == null || productsSold.isEmpty()) {
             return;
         }
+
+        for (Product product : productsSold) {
+            product.setStock(product.getStock() - 1);
+        }
+        
+        productDAO.saveProducts(products);
+        
         Sale sale = new Sale(saleId, date, productsSold, customer, seller);
         sales.add(sale);
         saleDAO.saveSales(sales);
