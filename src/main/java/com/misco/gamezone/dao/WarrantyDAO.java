@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,21 +27,14 @@ import java.util.List;
 public class WarrantyDAO {
 
     private final String filePath;
-    private final SaleDAO saleDAO;
-    private final ProductDAO productDAO;
 
     /**
      * Creates a warranty DAO.
      *
      * @param filePath warranty file path
-     * @param saleDAO sale data access object
-     * @param productDAO product data access object
      */
-    public WarrantyDAO(String filePath, SaleDAO saleDAO,
-                       ProductDAO productDAO) {
+    public WarrantyDAO(String filePath) {
         this.filePath = filePath;
-        this.saleDAO = saleDAO;
-        this.productDAO = productDAO;
     }
 
     /**
@@ -49,15 +43,17 @@ public class WarrantyDAO {
      * @param warranties warranties to save
      */
     public void saveAll(List<Warranty> warranties) {
+
         File file = new File(filePath);
 
         File parent = file.getParentFile();
+
         if (parent != null && !parent.exists()) {
             parent.mkdirs();
         }
 
-        try (BufferedWriter writer =
-                     new BufferedWriter(new FileWriter(file))) {
+        try (BufferedWriter writer
+                = new BufferedWriter(new FileWriter(file))) {
 
             for (Warranty warranty : warranties) {
 
@@ -84,29 +80,29 @@ public class WarrantyDAO {
 
         } catch (IOException e) {
             throw new RuntimeException(
-                    "Error saving warranties: " + e.getMessage(), e);
+                    "Error saving warranties: "
+                    + e.getMessage(), e
+            );
         }
     }
 
     /**
-     * Loads all warranties from the persistence file.
+     * Loads warranty persistence records without resolving product or sale
+     * references.
      *
-     * @return stored warranties
+     * @return stored warranty records
      */
-    public List<Warranty> loadAll() {
+    public List<WarrantyRecord> loadAll() {
 
-        List<Warranty> warranties = new ArrayList<>();
+        List<WarrantyRecord> records = new ArrayList<>();
         File file = new File(filePath);
 
         if (!file.exists()) {
-            return warranties;
+            return records;
         }
 
-        List<Sale> sales = saleDAO.loadSales();
-        List<Product> products = productDAO.loadProducts();
-
-        try (BufferedReader reader =
-                     new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader
+                = new BufferedReader(new FileReader(file))) {
 
             String line;
 
@@ -122,73 +118,79 @@ public class WarrantyDAO {
                     continue;
                 }
 
-                String type = data[0];
-                String warrantyId = data[1];
-                String productId = data[2];
-                String saleId = data[3];
+                WarrantyRecord record = new WarrantyRecord(
+                        data[0],
+                        data[1],
+                        data[2],
+                        data[3],
+                        LocalDate.parse(data[4])
+                );
 
-                Product product = findProduct(products, productId);
-                Sale sale = findSale(sales, saleId);
-
-                if (product == null || sale == null) {
-                    continue;
-                }
-
-                java.time.LocalDate startDate =
-                        java.time.LocalDate.parse(data[4]);
-
-                Warranty warranty;
-
-                if ("BASIC".equalsIgnoreCase(type)) {
-
-                    warranty = new BasicWarranty(
-                            warrantyId,
-                            product,
-                            sale,
-                            startDate
-                    );
-
-                } else if ("EXTENDED".equalsIgnoreCase(type)) {
-
-                    warranty = new ExtendedWarranty(
-                            warrantyId,
-                            product,
-                            sale,
-                            startDate
-                    );
-
-                } else {
-                    continue;
-                }
-
-                warranties.add(warranty);
+                records.add(record);
             }
 
         } catch (IOException e) {
             throw new RuntimeException(
-                    "Error loading warranties: " + e.getMessage(), e);
+                    "Error loading warranties: "
+                    + e.getMessage(), e
+            );
         }
 
-        return warranties;
+        return records;
     }
 
-    private Product findProduct(List<Product> products, String productId) {
-        for (Product product : products) {
-            if (product.getId().equalsIgnoreCase(productId)) {
-                return product;
-            }
+    /**
+     * Represents warranty data loaded from persistence.
+     */
+    public static class WarrantyRecord {
+
+        private final String type;
+        private final String warrantyId;
+        private final String productId;
+        private final String saleId;
+        private final LocalDate startDate;
+
+        /**
+         * Creates a warranty persistence record.
+         *
+         * @param type warranty type
+         * @param warrantyId warranty identifier
+         * @param productId product identifier
+         * @param saleId sale identifier
+         * @param startDate warranty start date
+         */
+        public WarrantyRecord(
+                String type,
+                String warrantyId,
+                String productId,
+                String saleId,
+                LocalDate startDate) {
+
+            this.type = type;
+            this.warrantyId = warrantyId;
+            this.productId = productId;
+            this.saleId = saleId;
+            this.startDate = startDate;
         }
 
-        return null;
-    }
-
-    private Sale findSale(List<Sale> sales, String saleId) {
-        for (Sale sale : sales) {
-            if (sale.getSaleId().equalsIgnoreCase(saleId)) {
-                return sale;
-            }
+        public String getType() {
+            return type;
         }
 
-        return null;
+        public String getWarrantyId() {
+            return warrantyId;
+        }
+
+        public String getProductId() {
+            return productId;
+        }
+
+        public String getSaleId() {
+            return saleId;
+        }
+
+        public LocalDate getStartDate() {
+            return startDate;
+        }
     }
 }
