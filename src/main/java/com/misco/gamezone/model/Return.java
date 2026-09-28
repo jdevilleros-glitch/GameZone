@@ -133,43 +133,83 @@ public class Return {
     }
 
     /**
-     * Calculates the refund amount by adding the prices of all returned
-     * products.
+     * Calculates the refund amount considering the proportional discount
+     * applied to the original sale.
      *
      * @return the calculated refund amount
      */
     public double calculateRefundAmount() {
+
         refundAmount = 0;
 
+        double subtotal = originalSale.getSubtotal();
+        double discount = originalSale.getDiscountAmount();
+
+        double discountRate = subtotal > 0
+                ? discount / subtotal
+                : 0;
+
         for (Product product : returnedProducts) {
-            refundAmount += product.getPrice();
+
+            double proportionalDiscount
+                    = product.getPrice() * discountRate;
+
+            double itemRefund
+                    = product.getPrice() - proportionalDiscount;
+
+            refundAmount += itemRefund;
         }
 
         return refundAmount;
     }
 
     /**
-     * Generates a formatted receipt containing the return details.
+     * Generates a formatted receipt containing the return details, including
+     * the proportional discount applied to each returned item.
      *
      * @return the formatted return receipt
      */
     public String generateReturnReceipt() {
+
         StringBuilder receipt = new StringBuilder();
 
-        receipt.append("Return ID: ").append(returnId)
+        receipt.append("===== RETURN RECEIPT =====")
+                .append("\nReturn ID: ").append(returnId)
                 .append("\nDate: ").append(returnDate)
-                .append("\nOriginal Sale: ").append(originalSale.getSaleId())
-                .append("\nReturned Products:");
+                .append("\nOriginal Sale: ")
+                .append(originalSale.getSaleId())
+                .append("\nReturned Items:");
+
+        double subtotal = originalSale.getSubtotal();
+        double discount = originalSale.getDiscountAmount();
+
+        double discountRate = subtotal > 0
+                ? discount / subtotal
+                : 0;
 
         for (Product product : returnedProducts) {
+
+            double originalPrice = product.getPrice();
+
+            double proportionalDiscount
+                    = originalPrice * discountRate;
+
+            double refundedAmount
+                    = originalPrice - proportionalDiscount;
+
             receipt.append("\n- ")
                     .append(product.getName())
-                    .append(" - $")
-                    .append(product.getPrice());
+                    .append("\n  Original Price: $")
+                    .append(originalPrice)
+                    .append("\n  Proportional Discount: $")
+                    .append(proportionalDiscount)
+                    .append("\n  Refunded Amount: $")
+                    .append(refundedAmount);
         }
 
-        receipt.append("\nReason: ").append(reason)
-                .append("\nRefund Amount: $")
+        receipt.append("\nReason: ")
+                .append(reason)
+                .append("\nTotal Refund: $")
                 .append(refundAmount);
 
         return receipt.toString();
