@@ -59,14 +59,17 @@ public class SaleDAO {
             String line;
 
             while ((line = reader.readLine()) != null) {
+
                 if (line.trim().isEmpty()) {
                     continue;
                 }
 
                 String[] fields = line.split(";", -1);
 
-                if (fields.length != 5) {
-                    System.out.println("Registro de venta inválido: " + line);
+                // Old sales contain 5 fields.
+                // Sales with promotions contain 7 fields.
+                if (fields.length != 5 && fields.length != 7) {
+                    System.out.println("Invalid sale record: " + line);
                     continue;
                 }
 
@@ -76,6 +79,23 @@ public class SaleDAO {
                 String sellerId = fields[3].trim();
                 String itemIdsText = fields[4].trim();
 
+                String promotionName = null;
+                double discountAmount = 0;
+
+                if (fields.length == 7) {
+                    promotionName = fields[5].trim().isEmpty()
+                            ? null
+                            : fields[5].trim();
+
+                    try {
+                        discountAmount = Double.parseDouble(fields[6].trim());
+                    } catch (NumberFormatException e) {
+                        System.out.println(
+                                "Invalid discount amount in sale: " + saleId);
+                        continue;
+                    }
+                }
+
                 try {
                     Date date = dateFormat.parse(dateText);
 
@@ -84,7 +104,7 @@ public class SaleDAO {
 
                     if (customer == null || seller == null) {
                         System.out.println(
-                                "No se encontró el cliente o vendedor de la venta: "
+                                "Customer or seller not found for sale: "
                                         + saleId);
                         continue;
                     }
@@ -110,8 +130,9 @@ public class SaleDAO {
 
                             if (item == null) {
                                 System.out.println(
-                                        "No se encontró el artículo " + itemId
-                                                + " de la venta " + saleId);
+                                        "Item " + itemId
+                                                + " not found for sale "
+                                                + saleId);
                                 validItems = false;
                                 break;
                             }
@@ -132,16 +153,26 @@ public class SaleDAO {
                             seller
                     );
 
+                    sale.setAppliedPromotionName(promotionName);
+                    sale.setDiscountAmount(discountAmount);
+
+                    if (discountAmount > 0) {
+                        sale.setTotal(
+                                sale.getTotal() - discountAmount
+                        );
+                    }
+
                     sales.add(sale);
 
                 } catch (ParseException | IllegalArgumentException e) {
                     System.out.println(
-                            "No se pudo cargar el registro de venta: " + line);
+                            "Could not load sale record: " + line);
                 }
             }
 
         } catch (IOException e) {
-            System.out.println("Error al cargar las ventas: " + e.getMessage());
+            System.out.println(
+                    "Error loading sales: " + e.getMessage());
         }
 
         return sales;
@@ -155,9 +186,12 @@ public class SaleDAO {
             parent.mkdirs();
         }
 
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd");
 
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+        try (BufferedWriter writer =
+                     new BufferedWriter(new FileWriter(file))) {
+
             for (Sale sale : sales) {
                 StringBuilder itemIds = new StringBuilder();
 
@@ -169,23 +203,34 @@ public class SaleDAO {
                     itemIds.append(item.getId());
                 }
 
-                writer.write(
-                        sale.getSaleid() + ";"
+                String promotionName =
+                        sale.getAppliedPromotionName() == null
+                                ? ""
+                                : sale.getAppliedPromotionName();
+
+                String line =
+                        sale.getSaleId() + ";"
                                 + dateFormat.format(sale.getDate()) + ";"
                                 + sale.getCustomer().getId() + ";"
                                 + sale.getSeller().getId() + ";"
-                                + itemIds
-                );
+                                + itemIds + ";"
+                                + promotionName + ";"
+                                + sale.getDiscountAmount();
 
+                writer.write(line);
                 writer.newLine();
             }
 
         } catch (IOException e) {
-            System.out.println("Error al guardar las ventas: " + e.getMessage());
+            System.out.println(
+                    "Error saving sales: " + e.getMessage());
         }
     }
 
-    private Customer findCustomer(List<Person> persons, String customerId) {
+    private Customer findCustomer(
+            List<Person> persons,
+            String customerId) {
+
         for (Person person : persons) {
             if (person instanceof Customer
                     && person.getId().equalsIgnoreCase(customerId)) {
@@ -196,7 +241,10 @@ public class SaleDAO {
         return null;
     }
 
-    private Seller findSeller(List<Person> persons, String sellerId) {
+    private Seller findSeller(
+            List<Person> persons,
+            String sellerId) {
+
         for (Person person : persons) {
             if (person instanceof Seller
                     && person.getId().equalsIgnoreCase(sellerId)) {
@@ -207,7 +255,10 @@ public class SaleDAO {
         return null;
     }
 
-    private Product findProduct(List<Product> products, String itemId) {
+    private Product findProduct(
+            List<Product> products,
+            String itemId) {
+
         for (Product product : products) {
             if (product.getId().equalsIgnoreCase(itemId)) {
                 return product;

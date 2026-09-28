@@ -16,14 +16,14 @@ public class Videogame extends Product {
     private String platform;
 
     /**
-     * Creates a videogame with the spececific information.
+     * Creates a videogame with the specific information.
      *
-     * @param id
-     * @param name
-     * @param price
-     * @param stock
-     * @param genre
-     * @param platform
+     * @param id unique identifier of the videogame
+     * @param name name of the videogame
+     * @param price price of the videogame
+     * @param stock available quantity of the videogame
+     * @param genre genre of the videogame
+     * @param platform platform of the videogame
      */
     public Videogame(String id, String name, double price, int stock, String genre, String platform) {
         super(id, name, price, stock);
@@ -68,7 +68,7 @@ public class Videogame extends Product {
     }
 
     /**
-     * Returns the product type
+     * Returns the product type.
      *
      * @return the product type as VIDEOGAME
      */
