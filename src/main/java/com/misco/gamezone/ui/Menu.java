@@ -386,15 +386,19 @@ public class Menu {
 
         } while (!productId.equals("0"));
 
-        saleService.registerSale(
+        boolean registered = saleService.registerSale(
                 saleId,
                 new Date(),
                 customerId,
                 sellerId,
                 productIds
         );
-
-        System.out.println("Sale operation completed.");
+        if (registered){
+        System.out.println("Sale registered successfully.");    
+        } else {
+            System.out.println("Sale could not be registered. Check the entered data.");
+        }
+        
     }
 
     /**
@@ -413,7 +417,7 @@ public class Menu {
 
         for (Sale sale : sales) {
             System.out.println(
-                    "Sale ID: " + sale.getSaleid()
+                    "Sale ID: " + sale.getSaleId()
                     + " | Customer: " + sale.getCustomer().getName()
                     + " | Seller: " + sale.getSeller().getName()
                     + " | Total: " + sale.getTotal()
@@ -439,7 +443,7 @@ public class Menu {
 
         for (Sale sale : sales) {
             System.out.println(
-                    "Sale ID: " + sale.getSaleid()
+                    "Sale ID: " + sale.getSaleId()
                     + " | Date: " + sale.getDate()
                     + " | Total: " + sale.getTotal()
             );
@@ -464,7 +468,7 @@ public class Menu {
 
         for (Sale sale : sales) {
             System.out.println(
-                    "Sale ID: " + sale.getSaleid()
+                    "Sale ID: " + sale.getSaleId()
                     + " | Date: " + sale.getDate()
                     + " | Customer: " + sale.getCustomer().getName()
                     + " | Total: " + sale.getTotal()

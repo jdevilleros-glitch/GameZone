@@ -157,7 +157,7 @@ public class SaleDAO {
                         productIds += product.getId();
                     }
 
-                    String line = sale.getSaleid() + ";"
+                    String line = sale.getSaleId() + ";"
                             + dateFormat.format(sale.getDate()) + ";"
                             + sale.getCustomer().getId() + ";"
                             + sale.getSeller().getId() + ";"

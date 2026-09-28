@@ -15,7 +15,7 @@ import java.util.List;
  */
 public class Sale {
 
-    private String saleid;
+    private String saleId;
     private Date date;
     private double total;
     private List<Product> productsSold;
@@ -26,14 +26,14 @@ public class Sale {
      * Creates a new sale and calculates its total amount based on the prices of
      * the products sold.
      *
-     * @param saleid unique identifier of the sale
+     * @param saleId unique identifier of the sale
      * @param date date when the sale was made
      * @param productsSold list of products included in the sale
      * @param customer customer who made the purchase
      * @param seller seller who handled the sale
      */
-    public Sale(String saleid, Date date, List<Product> productsSold, Customer customer, Seller seller) {
-        this.saleid = saleid;
+    public Sale(String saleId, Date date, List<Product> productsSold, Customer customer, Seller seller) {
+        this.saleId = saleId;
         this.date = date;
         this.productsSold = productsSold;
         this.customer = customer;
@@ -46,8 +46,8 @@ public class Sale {
      *
      * @return the sale identifier
      */
-    public String getSaleid() {
-        return saleid;
+    public String getSaleId() {
+        return saleId;
     }
 
     /**

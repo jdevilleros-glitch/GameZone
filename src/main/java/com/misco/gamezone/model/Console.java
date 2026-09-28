@@ -17,12 +17,12 @@ public class Console extends Product {
     /**
      * Creates a console with the specific information.
      *
-     * @param id
-     * @param name
-     * @param price
-     * @param stock
-     * @param brand
-     * @param model
+     * @param id unique identifier of the product
+     * @param name name of the product
+     * @param price price of the product
+     * @param stock available quantity of the product
+     * @param brand brand of the console
+     * @param model model of the console
      */
     public Console(String id, String name, double price, int stock, String brand, String model) {
         super(id, name, price, stock);

@@ -50,7 +50,7 @@ public class ProductService {
     /**
      * Registers a new console and saves the updated product list.
      *
-     * @param id unique identifier of the videogame
+     * @param id unique identifier of the console
      * @param name name of the console
      * @param price price of the console
      * @param stock available quantity
@@ -69,6 +69,28 @@ public class ProductService {
      * @return a copy of the product list
      */
     public List<Product> listProducts() {
+        products = productDAO.loadProducts();
         return new ArrayList<>(products);
+    }
+
+    /**
+     * Updates the stock of a product and saves the updated product list.
+     *
+     * @param productId unique identifier of the product
+     * @param newStock new available quantity
+     * @return true if the product was found and updated, false otherwise
+     */
+    public boolean updateStock(String productId, int newStock) {
+        products = productDAO.loadProducts();
+        
+        for (Product product : products) {
+            if (product.getId().equals(productId)) {
+                product.setStock(newStock);
+                productDAO.saveProducts(products);
+                return true;
+            }
+        }
+
+        return false;
     }
 }

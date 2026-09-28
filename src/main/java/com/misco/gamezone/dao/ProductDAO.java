@@ -16,8 +16,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 
 /**
- * Provides file persistence operations to all products. It loads ad saves
- * product data via file.
+ * Provides file persistence operations to all products.
+ * It loads and saves product data via text file.
  *
  * @author USUARIO
  */
