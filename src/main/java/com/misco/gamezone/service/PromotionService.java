@@ -68,6 +68,16 @@ public class PromotionService {
      * @param percentage discount percentage
      * @param targetCategory category to which the discount applies
      */
+    /**
+     * Registers a category discount promotion.
+     *
+     * @param id promotion ID
+     * @param name promotion name
+     * @param startDate promotion start date
+     * @param endDate promotion end date
+     * @param percentage discount percentage
+     * @param targetCategory target product category
+     */
     public void registerCategoryDiscount(
             String id,
             String name,
@@ -76,9 +86,24 @@ public class PromotionService {
             double percentage,
             String targetCategory) {
 
+        if (targetCategory == null
+                || (!targetCategory.equalsIgnoreCase("VIDEOGAME")
+                && !targetCategory.equalsIgnoreCase("CONSOLE")
+                && !targetCategory.equalsIgnoreCase("ACCESSORY"))) {
+
+            throw new IllegalArgumentException(
+                    "Invalid category. Allowed categories: "
+                    + "VIDEOGAME, CONSOLE, ACCESSORY."
+            );
+        }
+
         Promotion promotion = new CategoryDiscount(
-                id, name, startDate, endDate,
-                percentage, targetCategory
+                id,
+                name,
+                startDate,
+                endDate,
+                percentage,
+                targetCategory.toUpperCase()
         );
 
         promotions.add(promotion);
