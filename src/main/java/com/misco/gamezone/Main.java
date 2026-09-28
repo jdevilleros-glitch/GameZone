@@ -92,7 +92,8 @@ public class Main {
                 returnDAO,
                 saleService,
                 productService,
-                accessoryService
+                accessoryService,
+                warrantyService
         );
 
         Menu menu = new Menu(
