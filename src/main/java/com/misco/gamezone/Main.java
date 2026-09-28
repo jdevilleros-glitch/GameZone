@@ -5,9 +5,11 @@ package com.misco.gamezone;
 
 import com.misco.gamezone.dao.PersonDAO;
 import com.misco.gamezone.dao.ProductDAO;
+import com.misco.gamezone.dao.PromotionDAO;
 import com.misco.gamezone.dao.SaleDAO;
 import com.misco.gamezone.service.PersonService;
 import com.misco.gamezone.service.ProductService;
+import com.misco.gamezone.service.PromotionService;
 import com.misco.gamezone.service.SaleService;
 import com.misco.gamezone.ui.Menu;
 
@@ -27,6 +29,7 @@ public class Main {
         
         ProductDAO productDAO = new ProductDAO("data/products.txt");
         PersonDAO personDAO = new PersonDAO("data/persons.txt");
+        PromotionDAO promotionDAO = new PromotionDAO("data/promotions.csv");
 
         SaleDAO saleDAO = new SaleDAO(
                 "data/sales.txt",
@@ -37,18 +40,21 @@ public class Main {
         
         ProductService productService = new ProductService(productDAO);
         PersonService personService = new PersonService(personDAO);
+        PromotionService promotionService = new PromotionService(promotionDAO);
 
         SaleService saleService = new SaleService(
                 saleDAO,
                 personDAO,
-                productDAO
+                productDAO,
+                promotionService
         );
 
 
         Menu menu = new Menu(
                 productService,
                 personService,
-                saleService
+                saleService,
+                promotionService
         );
 
         menu.showMainMenu();
