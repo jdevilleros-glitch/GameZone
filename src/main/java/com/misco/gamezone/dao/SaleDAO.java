@@ -1,124 +1,154 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.dao;
 
+import com.misco.gamezone.model.Accessory;
 import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Person;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Sale;
 import com.misco.gamezone.model.Seller;
+import com.misco.gamezone.persistence.AccessoryRepository;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Date;
+import java.util.List;
 
-/**
- * Handles the persistence of sale data in a text file. It loads and saves sales
- * and reconstructs their relationships with customers, sellers, and products.
- *
- * @author USUARIO
- */
 public class SaleDAO {
 
     private final String filePath;
-    private ProductDAO productDAO;
-    private PersonDAO personDAO;
+    private final ProductDAO productDAO;
+    private final PersonDAO personDAO;
+    private final AccessoryRepository accessoryRepository;
 
-    /**
-     * Creates a SaleDAO with the file used to store sales and the DAOs required
-     * to retrieve products and persons.
-     *
-     * @param filePath path of the sales data file
-     * @param productDAO DAO used to retrieve product information
-     * @param personDAO DAO used to retrieve customer and seller information
-     */
-    public SaleDAO(String filePath, ProductDAO productDAO, PersonDAO personDAO) {
+    public SaleDAO(
+            String filePath,
+            ProductDAO productDAO,
+            PersonDAO personDAO,
+            AccessoryRepository accessoryRepository) {
+
         this.filePath = filePath;
         this.productDAO = productDAO;
         this.personDAO = personDAO;
+        this.accessoryRepository = accessoryRepository;
     }
 
-    /**
-     * Loads the sales stored in the data file. Customer, seller, and product
-     * identifiers are matched with their corresponding objects.
-     *
-     * @return a list containing the loaded sales
-     */
     public List<Sale> loadSales() {
         List<Sale> sales = new ArrayList<>();
+
         List<Person> persons = personDAO.loadPersons();
         List<Product> products = productDAO.loadProducts();
+        List<Accessory> accessories = accessoryRepository.loadAll();
 
-        Path path = Path.of(filePath);
+        File file = new File(filePath);
 
-        if (!Files.exists(path)) {
+        if (!file.exists()) {
             return sales;
         }
 
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        dateFormat.setLenient(false);
 
-        try (BufferedReader reader = Files.newBufferedReader(path)) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
 
             while ((line = reader.readLine()) != null) {
 
-                String[] data = line.split(";");
-
-                if (data.length != 5 && data.length != 7) {
+                if (line.trim().isEmpty()) {
                     continue;
                 }
 
-                String saleId = data[0];
-                Date date = dateFormat.parse(data[1]);
-                String customerId = data[2];
-                String sellerId = data[3];
-                String[] productIds = data[4].split(",");
+                String[] fields = line.split(";", -1);
+
+                // Old sales contain 5 fields.
+                // Sales with promotions contain 7 fields.
+                if (fields.length != 5 && fields.length != 7) {
+                    System.out.println("Invalid sale record: " + line);
+                    continue;
+                }
+
+                String saleId = fields[0].trim();
+                String dateText = fields[1].trim();
+                String customerId = fields[2].trim();
+                String sellerId = fields[3].trim();
+                String itemIdsText = fields[4].trim();
 
                 String promotionName = null;
                 double discountAmount = 0;
 
-                if (data.length == 7) {
-                    promotionName = data[5].isEmpty() ? null : data[5];
-                    discountAmount = Double.parseDouble(data[6]);
-                }
-                Customer customer = null;
-                Seller seller = null;
+                if (fields.length == 7) {
+                    promotionName = fields[5].trim().isEmpty()
+                            ? null
+                            : fields[5].trim();
 
-                for (Person person : persons) {
-
-                    if (person instanceof Customer && person.getId().equals(customerId)) {
-                        customer = (Customer) person;
-                    }
-
-                    if (person instanceof Seller && person.getId().equals(sellerId)) {
-                        seller = (Seller) person;
+                    try {
+                        discountAmount = Double.parseDouble(fields[6].trim());
+                    } catch (NumberFormatException e) {
+                        System.out.println(
+                                "Invalid discount amount in sale: " + saleId);
+                        continue;
                     }
                 }
 
-                List<Product> productsSold = new ArrayList<>();
+                try {
+                    Date date = dateFormat.parse(dateText);
 
-                for (String productId : productIds) {
+                    Customer customer = findCustomer(persons, customerId);
+                    Seller seller = findSeller(persons, sellerId);
 
-                    for (Product product : products) {
-                        if (product.getId().equals(productId)) {
-                            productsSold.add(product);
+                    if (customer == null || seller == null) {
+                        System.out.println(
+                                "Customer or seller not found for sale: "
+                                        + saleId);
+                        continue;
+                    }
+
+                    List<Product> itemsSold = new ArrayList<>();
+                    boolean validItems = true;
+
+                    if (!itemIdsText.isEmpty()) {
+                        String[] itemIds = itemIdsText.split(",");
+
+                        for (String rawId : itemIds) {
+                            String itemId = rawId.trim();
+
+                            if (itemId.isEmpty()) {
+                                continue;
+                            }
+
+                            Product item = findProduct(products, itemId);
+
+                            if (item == null) {
+                                item = findAccessory(accessories, itemId);
+                            }
+
+                            if (item == null) {
+                                System.out.println(
+                                        "Item " + itemId
+                                                + " not found for sale "
+                                                + saleId);
+                                validItems = false;
+                                break;
+                            }
+
+                            itemsSold.add(item);
                         }
                     }
-                }
 
-                if (customer != null && seller != null && !productsSold.isEmpty()) {
+                    if (!validItems || itemsSold.isEmpty()) {
+                        continue;
+                    }
+
                     Sale sale = new Sale(
                             saleId,
                             date,
-                            productsSold,
+                            itemsSold,
                             customer,
                             seller
                     );
@@ -127,68 +157,127 @@ public class SaleDAO {
                     sale.setDiscountAmount(discountAmount);
 
                     if (discountAmount > 0) {
-                        sale.setTotal(sale.getTotal() - discountAmount);
+                        sale.setTotal(
+                                sale.getTotal() - discountAmount
+                        );
                     }
 
                     sales.add(sale);
 
+                } catch (ParseException | IllegalArgumentException e) {
+                    System.out.println(
+                            "Could not load sale record: " + line);
                 }
-
             }
-        } catch (IOException | ParseException ex) {
-            System.out.println("Error reading sales file");
+
+        } catch (IOException e) {
+            System.out.println(
+                    "Error loading sales: " + e.getMessage());
         }
 
         return sales;
     }
 
-    /**
-     * Saves the provided list of sales to the data file. Each sale is stored
-     * with its identifier, date, customer, seller, and product identifiers.
-     *
-     * @param sales list of sales to save
-     */
     public void saveSales(List<Sale> sales) {
-        Path path = Path.of(filePath);
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        File file = new File(filePath);
+        File parent = file.getParentFile();
 
-        try {
-            if (path.getParent() != null) {
-                Files.createDirectories(path.getParent());
-            }
+        if (parent != null && !parent.exists()) {
+            parent.mkdirs();
+        }
 
-            try (BufferedWriter writer = Files.newBufferedWriter(path)) {
-                for (Sale sale : sales) {
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd");
 
-                    String productIds = "";
+        try (BufferedWriter writer =
+                     new BufferedWriter(new FileWriter(file))) {
 
-                    for (Product product : sale.getProductsSold()) {
+            for (Sale sale : sales) {
+                StringBuilder itemIds = new StringBuilder();
 
-                        if (!productIds.isEmpty()) {
-                            productIds += ",";
-                        }
-
-                        productIds += product.getId();
+                for (Product item : sale.getProductsSold()) {
+                    if (itemIds.length() > 0) {
+                        itemIds.append(",");
                     }
 
-                    String promotionName = sale.getAppliedPromotionName() == null
-                            ? ""
-                            : sale.getAppliedPromotionName();
-
-                    String line = sale.getSaleId() + ";"
-                            + dateFormat.format(sale.getDate()) + ";"
-                            + sale.getCustomer().getId() + ";"
-                            + sale.getSeller().getId() + ";"
-                            + productIds + ";"
-                            + promotionName + ";"
-                            + sale.getDiscountAmount();
-
-                    writer.write(line);
-                    writer.newLine();
+                    itemIds.append(item.getId());
                 }
+
+                String promotionName =
+                        sale.getAppliedPromotionName() == null
+                                ? ""
+                                : sale.getAppliedPromotionName();
+
+                String line =
+                        sale.getSaleId() + ";"
+                                + dateFormat.format(sale.getDate()) + ";"
+                                + sale.getCustomer().getId() + ";"
+                                + sale.getSeller().getId() + ";"
+                                + itemIds + ";"
+                                + promotionName + ";"
+                                + sale.getDiscountAmount();
+
+                writer.write(line);
+                writer.newLine();
             }
+
         } catch (IOException e) {
-            System.out.println("Error saving sales file");
+            System.out.println(
+                    "Error saving sales: " + e.getMessage());
         }
+    }
+
+    private Customer findCustomer(
+            List<Person> persons,
+            String customerId) {
+
+        for (Person person : persons) {
+            if (person instanceof Customer
+                    && person.getId().equalsIgnoreCase(customerId)) {
+                return (Customer) person;
+            }
+        }
+
+        return null;
+    }
+
+    private Seller findSeller(
+            List<Person> persons,
+            String sellerId) {
+
+        for (Person person : persons) {
+            if (person instanceof Seller
+                    && person.getId().equalsIgnoreCase(sellerId)) {
+                return (Seller) person;
+            }
+        }
+
+        return null;
+    }
+
+    private Product findProduct(
+            List<Product> products,
+            String itemId) {
+
+        for (Product product : products) {
+            if (product.getId().equalsIgnoreCase(itemId)) {
+                return product;
+            }
+        }
+
+        return null;
+    }
+
+    private Accessory findAccessory(
+            List<Accessory> accessories,
+            String itemId) {
+
+        for (Accessory accessory : accessories) {
+            if (accessory.getId().equalsIgnoreCase(itemId)) {
+                return accessory;
+            }
+        }
+
+        return null;
     }
 }

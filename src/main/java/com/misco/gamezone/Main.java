@@ -1,6 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
 package com.misco.gamezone;
 
 import com.misco.gamezone.dao.PersonDAO;
@@ -8,6 +5,8 @@ import com.misco.gamezone.dao.ProductDAO;
 import com.misco.gamezone.dao.PromotionDAO;
 import com.misco.gamezone.dao.ReturnDAO;
 import com.misco.gamezone.dao.SaleDAO;
+import com.misco.gamezone.persistence.AccessoryRepository;
+import com.misco.gamezone.service.AccessoryService;
 import com.misco.gamezone.service.PersonService;
 import com.misco.gamezone.service.ProductService;
 import com.misco.gamezone.service.PromotionService;
@@ -34,10 +33,23 @@ public class Main {
         PersonDAO personDAO = new PersonDAO("data/persons.txt");
         PromotionDAO promotionDAO = new PromotionDAO("data/promotions.csv");
 
+        AccessoryRepository accessoryRepository =
+                new AccessoryRepository();
+
+        ProductService productService =
+                new ProductService(productDAO);
+
+        PersonService personService =
+                new PersonService(personDAO);
+
+        AccessoryService accessoryService =
+                new AccessoryService(accessoryRepository);
+
         SaleDAO saleDAO = new SaleDAO(
                 "data/sales.txt",
                 productDAO,
-                personDAO
+                personDAO,
+                accessoryRepository
         );
 
         ReturnDAO returnDAO = new ReturnDAO(
@@ -46,14 +58,14 @@ public class Main {
                 productDAO
         );
 
-        ProductService productService = new ProductService(productDAO);
-        PersonService personService = new PersonService(personDAO);
-        PromotionService promotionService = new PromotionService(promotionDAO);
+        PromotionService promotionService =
+                new PromotionService(promotionDAO);
 
         SaleService saleService = new SaleService(
                 saleDAO,
                 personDAO,
                 productDAO,
+                accessoryService,
                 promotionService
         );
 
@@ -67,6 +79,7 @@ public class Main {
                 productService,
                 personService,
                 saleService,
+                accessoryService,
                 promotionService,
                 returnService
         );
