@@ -81,7 +81,8 @@ public class ProductService {
      * @return true if the product was found and updated, false otherwise
      */
     public boolean updateStock(String productId, int newStock) {
-
+        products = productDAO.loadProducts();
+        
         for (Product product : products) {
             if (product.getId().equals(productId)) {
                 product.setStock(newStock);
