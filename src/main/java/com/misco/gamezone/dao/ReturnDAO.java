@@ -78,7 +78,7 @@ public class ReturnDAO {
 
                 String[] data = line.split(";");
 
-                if (data.length != 6) {
+                if (data.length != 6 && data.length != 7) {
                     continue;
                 }
 
@@ -87,6 +87,11 @@ public class ReturnDAO {
                 String saleId = data[2];
                 String[] productIds = data[3].split(",");
                 String reason = data[4];
+                double warrantyRefundAmount = 0;
+
+                if (data.length >= 7) {
+                    warrantyRefundAmount = Double.parseDouble(data[6]);
+                }
 
                 Sale originalSale = null;
 
@@ -143,6 +148,10 @@ public class ReturnDAO {
                         reason
                 );
 
+                returnRecord.setWarrantyRefundAmount(
+                        warrantyRefundAmount
+                );
+
                 returns.add(returnRecord);
             }
 
@@ -186,7 +195,8 @@ public class ReturnDAO {
                             + returnRecord.getOriginalSale().getSaleId() + ";"
                             + productIds + ";"
                             + returnRecord.getReason() + ";"
-                            + returnRecord.getRefundAmount();
+                            + returnRecord.getRefundAmount() + ";"
+                            + returnRecord.getWarrantyRefundAmount();
 
                     writer.write(line);
                     writer.newLine();
