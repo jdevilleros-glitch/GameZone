@@ -6,10 +6,12 @@ package com.misco.gamezone;
 import com.misco.gamezone.dao.PersonDAO;
 import com.misco.gamezone.dao.ProductDAO;
 import com.misco.gamezone.dao.PromotionDAO;
+import com.misco.gamezone.dao.ReturnDAO;
 import com.misco.gamezone.dao.SaleDAO;
 import com.misco.gamezone.service.PersonService;
 import com.misco.gamezone.service.ProductService;
 import com.misco.gamezone.service.PromotionService;
+import com.misco.gamezone.service.ReturnService;
 import com.misco.gamezone.service.SaleService;
 import com.misco.gamezone.ui.Menu;
 
@@ -20,13 +22,14 @@ import com.misco.gamezone.ui.Menu;
  * @author USUARIO
  */
 public class Main {
-/**
+
+    /**
      * Application entry point.
      *
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        
+
         ProductDAO productDAO = new ProductDAO("data/products.txt");
         PersonDAO personDAO = new PersonDAO("data/persons.txt");
         PromotionDAO promotionDAO = new PromotionDAO("data/promotions.csv");
@@ -36,8 +39,13 @@ public class Main {
                 productDAO,
                 personDAO
         );
-        
-        
+
+        ReturnDAO returnDAO = new ReturnDAO(
+                "data/returns.csv",
+                saleDAO,
+                productDAO
+        );
+
         ProductService productService = new ProductService(productDAO);
         PersonService personService = new PersonService(personDAO);
         PromotionService promotionService = new PromotionService(promotionDAO);
@@ -49,12 +57,18 @@ public class Main {
                 promotionService
         );
 
+        ReturnService returnService = new ReturnService(
+                returnDAO,
+                saleService,
+                productService
+        );
 
         Menu menu = new Menu(
                 productService,
                 personService,
                 saleService,
-                promotionService
+                promotionService,
+                returnService
         );
 
         menu.showMainMenu();

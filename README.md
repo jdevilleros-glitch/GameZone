@@ -84,3 +84,47 @@ The abstract `Promotion` class defines the common structure and behavior of prom
 `PromotionService` contains the business logic for identifying active promotions and selecting the promotion that provides the highest discount for a sale.
 
 Promotion data is persisted in `data/promotions.csv`.
+
+## Return Module
+
+The Return Module allows GameZone to manage product returns associated with previously registered sales.
+
+### Main Features
+
+- Register partial product returns from an existing sale.
+- Validate that the original sale exists.
+- Validate the 30-day return period.
+- Validate that returned products belong to the original sale.
+- Prevent the same product from being returned more than once for the same sale.
+- Automatically calculate the refund amount.
+- Automatically restore returned products to inventory.
+- View all registered returns.
+- View returns by customer.
+- View returns by sale.
+- Generate a monthly balance based on sales and returns.
+
+### Return Persistence
+
+Returns are stored in:
+
+`data/returns.csv`
+
+Each return stores the return identifier, return date, original sale identifier, returned product identifiers, reason, and refund amount.
+
+### Return Management Menu
+
+The application includes a Returns Management menu with the following options:
+
+1. Register Return
+2. List All Returns
+3. Returns by Customer
+4. Returns by Sale
+5. Monthly Balance
+
+### Monthly Balance
+
+The monthly balance is calculated using:
+
+`Monthly Balance = Sales Total - Returns Total`
+
+Sales and returns are filtered according to the month and year selected by the user.

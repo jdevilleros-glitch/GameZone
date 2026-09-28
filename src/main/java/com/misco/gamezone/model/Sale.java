@@ -4,6 +4,9 @@
  */
 package com.misco.gamezone.model;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.List;
 
@@ -176,5 +179,23 @@ public class Sale {
                 + "\nPromotion: " + promotion
                 + "\nDiscount: $" + discountAmount
                 + "\nTotal: $" + total;
+    }
+
+    /**
+     * Determines whether this sale is still within the allowed 30-day return
+     * period.
+     *
+     * @return true if the sale can still be returned, false otherwise
+     */
+    public boolean canBeReturned() {
+        LocalDate saleDate = date.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
+
+        LocalDate currentDate = LocalDate.now();
+
+        long daysSinceSale = ChronoUnit.DAYS.between(saleDate, currentDate);
+
+        return daysSinceSale >= 0 && daysSinceSale <= 30;
     }
 }

@@ -7,11 +7,13 @@ package com.misco.gamezone.ui;
 import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Promotion;
+import com.misco.gamezone.model.Return;
 import com.misco.gamezone.model.Sale;
 import com.misco.gamezone.model.Seller;
 import com.misco.gamezone.service.PersonService;
 import com.misco.gamezone.service.ProductService;
 import com.misco.gamezone.service.PromotionService;
+import com.misco.gamezone.service.ReturnService;
 import com.misco.gamezone.service.SaleService;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -32,6 +34,7 @@ public class Menu {
     private PersonService personService;
     private SaleService saleService;
     private PromotionService promotionService;
+    private ReturnService returnService;
     private Scanner scanner;
 
     /**
@@ -41,17 +44,20 @@ public class Menu {
      * @param personService service used to manage customers and sellers
      * @param saleService service used to manage sales
      * @param promotionService service used to manage promotions
+     * @param returnService service used to manage returns
      */
     public Menu(
             ProductService productService,
             PersonService personService,
             SaleService saleService,
-            PromotionService promotionService) {
+            PromotionService promotionService,
+            ReturnService returnService) {
 
         this.productService = productService;
         this.personService = personService;
         this.saleService = saleService;
         this.promotionService = promotionService;
+        this.returnService = returnService;
         this.scanner = new Scanner(System.in);
     }
 
@@ -69,6 +75,7 @@ public class Menu {
             System.out.println("2. Person Management");
             System.out.println("3. Sales Management");
             System.out.println("4. Promotion Management");
+            System.out.println("5. Returns Management");
             System.out.println("0. Exit");
             System.out.println(" ");
             System.out.println("Select an option: ");
@@ -87,6 +94,9 @@ public class Menu {
                     break;
                 case 4:
                     showPromotionMenu();
+                    break;
+                case 5:
+                    showReturnMenu();
                     break;
                 case 0:
                     System.out.println("Exiting...");
@@ -708,5 +718,192 @@ public class Menu {
                     + " | End Date: " + promotion.getEndDate()
             );
         }
+    }
+
+    /**
+     * Displays the return management menu.
+     */
+    private void showReturnMenu() {
+
+        int option;
+
+        do {
+            System.out.println("\n===== RETURNS MANAGEMENT =====");
+            System.out.println("1. Register Return");
+            System.out.println("2. List All Returns");
+            System.out.println("3. Returns by Customer");
+            System.out.println("4. Returns by Sale");
+            System.out.println("5. Monthly Balance");
+            System.out.println("0. Back");
+            System.out.print("Select an option: ");
+
+            option = scanner.nextInt();
+            scanner.nextLine();
+
+            switch (option) {
+                case 1:
+                    registerReturn();
+                    break;
+                case 2:
+                    listAllReturns();
+                    break;
+                case 3:
+                    showReturnsByCustomer();
+                    break;
+                case 4:
+                    showReturnsBySale();
+                    break;
+                case 5:
+                    showMonthlyBalance();
+                    break;
+                case 0:
+                    break;
+                default:
+                    System.out.println("Invalid option. Please try again.");
+            }
+
+        } while (option != 0);
+    }
+
+    /**
+     * Reads return information and registers a new product return.
+     */
+    private void registerReturn() {
+
+        System.out.println("\n===== REGISTER RETURN =====");
+
+        System.out.print("Enter sale ID: ");
+        String saleId = scanner.nextLine();
+
+        List<String> productIds = new ArrayList<>();
+
+        System.out.println("Enter product IDs to return one at a time.");
+        System.out.println("Enter 0 when finished.");
+
+        String productId;
+
+        do {
+            System.out.print("Product ID: ");
+            productId = scanner.nextLine();
+
+            if (!productId.equals("0") && !productIds.contains(productId)) {
+                productIds.add(productId);
+            } else if (!productId.equals("0")) {
+                System.out.println("Product already selected.");
+            }
+
+        } while (!productId.equals("0"));
+
+        System.out.print("Enter return reason: ");
+        String reason = scanner.nextLine();
+
+        try {
+            Return returnRecord = returnService.registerReturn(
+                    saleId,
+                    productIds,
+                    reason
+            );
+
+            System.out.println("\nReturn registered successfully.");
+            System.out.println(returnRecord.generateReturnReceipt());
+
+        } catch (IllegalArgumentException e) {
+            System.out.println("Return could not be registered: "
+                    + e.getMessage());
+        }
+    }
+
+    /**
+     * Displays all registered returns.
+     */
+    private void listAllReturns() {
+
+        System.out.println("\n===== RETURN HISTORY =====");
+
+        List<Return> returns = returnService.viewAllReturns();
+
+        if (returns.isEmpty()) {
+            System.out.println("No returns registered.");
+            return;
+        }
+
+        for (Return returnRecord : returns) {
+            System.out.println(returnRecord.generateReturnReceipt());
+            System.out.println("------------------------------");
+        }
+    }
+
+    /**
+     * Displays returns associated with a specific customer.
+     */
+    private void showReturnsByCustomer() {
+
+        System.out.println("\n===== RETURNS BY CUSTOMER =====");
+
+        System.out.print("Enter customer ID: ");
+        String customerId = scanner.nextLine();
+
+        List<Return> returns
+                = returnService.viewReturnsByCustomer(customerId);
+
+        if (returns.isEmpty()) {
+            System.out.println("No returns found for this customer.");
+            return;
+        }
+
+        for (Return returnRecord : returns) {
+            System.out.println(returnRecord.generateReturnReceipt());
+            System.out.println("------------------------------");
+        }
+    }
+
+    /**
+     * Displays returns associated with a specific sale.
+     */
+    private void showReturnsBySale() {
+
+        System.out.println("\n===== RETURNS BY SALE =====");
+
+        System.out.print("Enter sale ID: ");
+        String saleId = scanner.nextLine();
+
+        List<Return> returns
+                = returnService.viewReturnsBySale(saleId);
+
+        if (returns.isEmpty()) {
+            System.out.println("No returns found for this sale.");
+            return;
+        }
+
+        for (Return returnRecord : returns) {
+            System.out.println(returnRecord.generateReturnReceipt());
+            System.out.println("------------------------------");
+        }
+    }
+
+    /**
+     * Displays the balance for a selected month and year.
+     */
+    private void showMonthlyBalance() {
+
+        System.out.println("\n===== MONTHLY BALANCE =====");
+
+        System.out.print("Enter month (1-12): ");
+        int month = scanner.nextInt();
+
+        System.out.print("Enter year: ");
+        int year = scanner.nextInt();
+        scanner.nextLine();
+
+        if (month < 1 || month > 12) {
+            System.out.println("Invalid month.");
+            return;
+        }
+
+        double balance = returnService.generateMonthlyBalance(month, year);
+
+        System.out.println(
+                "Balance for " + month + "/" + year + ": $" + balance
+        );
     }
 }
