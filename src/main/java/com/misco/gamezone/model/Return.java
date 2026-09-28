@@ -22,6 +22,7 @@ public class Return {
     private List<Product> returnedProducts;
     private String reason;
     private double refundAmount;
+    private double warrantyRefundAmount;
 
     /**
      * Creates a new return associated with an existing sale.
@@ -39,6 +40,7 @@ public class Return {
         this.originalSale = originalSale;
         this.returnedProducts = returnedProducts;
         this.reason = reason;
+        this.warrantyRefundAmount = 0;
         this.refundAmount = calculateRefundAmount();
     }
 
@@ -140,7 +142,7 @@ public class Return {
      */
     public double calculateRefundAmount() {
 
-        refundAmount = 0;
+        refundAmount = warrantyRefundAmount;
 
         double subtotal = originalSale.getSubtotal();
         double discount = originalSale.getDiscountAmount();
@@ -207,11 +209,34 @@ public class Return {
                     .append(refundedAmount);
         }
 
+        receipt.append("\nExtended Warranty Refund: $")
+                .append(warrantyRefundAmount);
+
         receipt.append("\nReason: ")
                 .append(reason)
                 .append("\nTotal Refund: $")
                 .append(refundAmount);
 
         return receipt.toString();
+    }
+
+    /**
+     * Returns the refundable amount from cancelled extended warranties.
+     *
+     * @return warranty refund amount
+     */
+    public double getWarrantyRefundAmount() {
+        return warrantyRefundAmount;
+    }
+
+    /**
+     * Sets the refundable amount from cancelled extended warranties and
+     * recalculates the total refund.
+     *
+     * @param warrantyRefundAmount refundable warranty amount
+     */
+    public void setWarrantyRefundAmount(double warrantyRefundAmount) {
+        this.warrantyRefundAmount = warrantyRefundAmount;
+        this.refundAmount = calculateRefundAmount();
     }
 }

@@ -8,6 +8,7 @@ import com.misco.gamezone.dao.ReturnDAO;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Return;
 import com.misco.gamezone.model.Accessory;
+import com.misco.gamezone.model.Console;
 import com.misco.gamezone.model.Sale;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -26,6 +27,7 @@ public class ReturnService {
     private ProductService productService;
     private List<Return> returns;
     private AccessoryService accessoryService;
+    private WarrantyService warrantyService;
 
     /**
      * Creates the return service and loads the stored returns.
@@ -34,17 +36,20 @@ public class ReturnService {
      * @param saleService service used to retrieve sales
      * @param productService service used to restore product stock
      * @param accessoryService service used to restore accessory stock
+     * @param warrantyService service used to manage warranty cancellations
      */
     public ReturnService(
             ReturnDAO returnDAO,
             SaleService saleService,
             ProductService productService,
-            AccessoryService accessoryService) {
+            AccessoryService accessoryService,
+            WarrantyService warrantyService) {
 
         this.returnDAO = returnDAO;
         this.saleService = saleService;
         this.productService = productService;
         this.accessoryService = accessoryService;
+        this.warrantyService = warrantyService;
         this.returns = returnDAO.loadAll();
     }
 
@@ -126,6 +131,24 @@ public class ReturnService {
                 sale,
                 returnedProducts,
                 reason
+        );
+
+        double warrantyRefundAmount = 0;
+
+        for (Product product : returnedProducts) {
+
+            if (product instanceof Console) {
+
+                warrantyRefundAmount
+                        += warrantyService.cancelWarranties(
+                                product.getId(),
+                                sale.getSaleId()
+                        );
+            }
+        }
+
+        returnRecord.setWarrantyRefundAmount(
+                warrantyRefundAmount
         );
 
         for (Product product : returnedProducts) {

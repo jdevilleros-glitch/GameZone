@@ -58,8 +58,8 @@ public class WarrantyService {
 
         for (WarrantyRecord record : records) {
 
-            Product product =
-                    productService.findProductById(record.getProductId());
+            Product product
+                    = productService.findProductById(record.getProductId());
 
             Sale sale = findSaleById(
                     sales,
@@ -187,7 +187,7 @@ public class WarrantyService {
             if (warranty.getProduct().getId()
                     .equalsIgnoreCase(productId)
                     && warranty.getSale().getSaleId()
-                    .equalsIgnoreCase(saleId)) {
+                            .equalsIgnoreCase(saleId)) {
 
                 return warranty;
             }
@@ -256,6 +256,50 @@ public class WarrantyService {
         }
 
         return expiringWarranties;
+    }
+
+    /**
+     * Cancels all warranties associated with a product in a specific sale.
+     * Basic warranties are cancelled without refund. Extended warranties return
+     * their additional cost as refundable value.
+     *
+     * @param productId product identifier
+     * @param saleId sale identifier
+     * @return refundable cost of cancelled extended warranties
+     */
+    public double cancelWarranties(
+            String productId,
+            String saleId) {
+
+        double refundableWarrantyCost = 0;
+
+        List<Warranty> warrantiesToRemove
+                = new ArrayList<>();
+
+        for (Warranty warranty : warranties) {
+
+            if (warranty.getProduct().getId()
+                    .equalsIgnoreCase(productId)
+                    && warranty.getSale().getSaleId()
+                            .equalsIgnoreCase(saleId)) {
+
+                if (warranty instanceof ExtendedWarranty) {
+                    refundableWarrantyCost
+                            += ((ExtendedWarranty) warranty)
+                                    .getAdditionalCost();
+                }
+
+                warrantiesToRemove.add(warranty);
+            }
+        }
+
+        warranties.removeAll(warrantiesToRemove);
+
+        if (!warrantiesToRemove.isEmpty()) {
+            warrantyDAO.saveAll(warranties);
+        }
+
+        return refundableWarrantyCost;
     }
 
     /**
