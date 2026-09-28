@@ -68,11 +68,12 @@ public class Main {
                         saleDAO,
                         productService
                 );
-        
+
         ReturnDAO returnDAO = new ReturnDAO(
                 "data/returns.csv",
                 saleDAO,
-                productDAO
+                productDAO,
+                accessoryRepository
         );
 
         PromotionService promotionService
@@ -90,7 +91,8 @@ public class Main {
         ReturnService returnService = new ReturnService(
                 returnDAO,
                 saleService,
-                productService
+                productService,
+                accessoryService
         );
 
         Menu menu = new Menu(

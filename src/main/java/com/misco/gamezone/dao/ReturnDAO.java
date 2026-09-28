@@ -4,9 +4,11 @@
  */
 package com.misco.gamezone.dao;
 
+import com.misco.gamezone.model.Accessory;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Return;
 import com.misco.gamezone.model.Sale;
+import com.misco.gamezone.persistence.AccessoryRepository;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -17,8 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Handles the persistence of return data in a CSV file.
- * It reconstructs the relationships between returns, sales, and products.
+ * Handles the persistence of return data in a CSV file. It reconstructs the
+ * relationships between returns, sales, and products.
  *
  * @author USUARIO
  */
@@ -27,19 +29,27 @@ public class ReturnDAO {
     private final String filePath;
     private SaleDAO saleDAO;
     private ProductDAO productDAO;
+    private final AccessoryRepository accessoryRepository;
 
     /**
-     * Creates a ReturnDAO with the file used to store returns and the DAOs
-     * required to retrieve sales and products.
+     * Creates a ReturnDAO with the dependencies required to reconstruct
+     * returned products and accessories.
      *
      * @param filePath path of the returns data file
      * @param saleDAO DAO used to retrieve sale information
      * @param productDAO DAO used to retrieve product information
+     * @param accessoryRepository repository used to retrieve accessories
      */
-    public ReturnDAO(String filePath, SaleDAO saleDAO, ProductDAO productDAO) {
+    public ReturnDAO(
+            String filePath,
+            SaleDAO saleDAO,
+            ProductDAO productDAO,
+            AccessoryRepository accessoryRepository) {
+
         this.filePath = filePath;
         this.saleDAO = saleDAO;
         this.productDAO = productDAO;
+        this.accessoryRepository = accessoryRepository;
     }
 
     /**
@@ -58,6 +68,8 @@ public class ReturnDAO {
 
         List<Sale> sales = saleDAO.loadSales();
         List<Product> products = productDAO.loadProducts();
+        List<Accessory> accessories
+                = accessoryRepository.loadAll();
 
         try (BufferedReader reader = Files.newBufferedReader(path)) {
             String line;
@@ -92,11 +104,30 @@ public class ReturnDAO {
                 List<Product> returnedProducts = new ArrayList<>();
 
                 for (String productId : productIds) {
+
+                    Product matchingItem = null;
+
                     for (Product product : products) {
-                        if (product.getId().equals(productId)) {
-                            returnedProducts.add(product);
+                        if (product.getId().equalsIgnoreCase(productId)) {
+                            matchingItem = product;
                             break;
                         }
+                    }
+
+                    if (matchingItem == null) {
+
+                        for (Accessory accessory : accessories) {
+                            if (accessory.getId()
+                                    .equalsIgnoreCase(productId)) {
+
+                                matchingItem = accessory;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (matchingItem != null) {
+                        returnedProducts.add(matchingItem);
                     }
                 }
 
