@@ -1216,7 +1216,8 @@ public class Menu {
     }
 
     /**
-     * Displays the balance for a selected month and year.
+     * Displays monthly sales, returns, and final balance for a selected month
+     * and year.
      */
     private void showMonthlyBalance() {
 
@@ -1234,11 +1235,32 @@ public class Menu {
             return;
         }
 
-        double balance = returnService.generateMonthlyBalance(month, year);
+        double salesTotal
+                = returnService.calculateMonthlySales(
+                        month, year);
+
+        double returnsTotal
+                = returnService.calculateMonthlyReturns(
+                        month, year);
+
+        double balance
+                = returnService.generateMonthlyBalance(
+                        month, year);
 
         System.out.println(
-                "Balance for " + month + "/" + year + ": $" + balance
-        );
+                "\n===== MONTHLY REPORT =====");
+
+        System.out.println(
+                "Period: " + month + "/" + year);
+
+        System.out.println(
+                "Total Sales: $" + salesTotal);
+
+        System.out.println(
+                "Total Returns: $" + returnsTotal);
+
+        System.out.println(
+                "Final Balance: $" + balance);
     }
 
     /**
