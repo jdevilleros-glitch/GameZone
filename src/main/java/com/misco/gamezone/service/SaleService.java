@@ -1,135 +1,188 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.service;
 
 import com.misco.gamezone.dao.PersonDAO;
 import com.misco.gamezone.dao.ProductDAO;
 import com.misco.gamezone.dao.SaleDAO;
+import com.misco.gamezone.model.Accessory;
 import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Person;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Sale;
 import com.misco.gamezone.model.Seller;
+
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-/**
- * Provides the business logic for managing sales in GameZone. It allows sales
- * to be registered and provides operations to retrieve sales and purchase
- * histories.
- *
- * @author USUARIO
- */
 public class SaleService {
 
-    private SaleDAO saleDAO;
-    private List<Sale> sales;
-    private PersonDAO personDAO;
-    private ProductDAO productDAO;
+    private final SaleDAO saleDAO;
+    private final PersonDAO personDAO;
+    private final ProductDAO productDAO;
+    private final AccessoryService accessoryService;
 
-    /**
-     * Creates a SaleService and loads the existing sales.
-     *
-     * @param saleDAO DAO used to load and save sales
-     * @param personDAO DAO used to retrieve customers and sellers
-     * @param productDAO DAO used to retrieve products
-     */
-    public SaleService(SaleDAO saleDAO, PersonDAO personDAO, ProductDAO productDAO) {
+    private List<Sale> sales;
+
+    public SaleService(
+            SaleDAO saleDAO,
+            PersonDAO personDAO,
+            ProductDAO productDAO,
+            AccessoryService accessoryService) {
+
         this.saleDAO = saleDAO;
         this.personDAO = personDAO;
         this.productDAO = productDAO;
+        this.accessoryService = accessoryService;
         this.sales = saleDAO.loadSales();
     }
 
-    /**
-     * Registers a new sale using an existing customer, seller, and one or more
-     * existing products. The sale is saved automatically after being
-     * registered.
-     *
-     * @param saleId unique identifier of the sale
-     * @param date date when the sale is made
-     * @param customerId identifier of the customer
-     * @param sellerId identifier of the seller
-     * @param productIds identifiers of the products included in the sale
-     */
-    public void registerSale(String saleId, Date date, String customerId, String sellerId, List<String> productIds) {
+    public boolean registerSale(
+            String saleId,
+            Date date,
+            String customerId,
+            String sellerId,
+            List<String> itemIds) {
+
+        if (saleId == null || saleId.trim().isEmpty()
+                || date == null
+                || itemIds == null || itemIds.isEmpty()) {
+            System.out.println("La información de la venta está incompleta.");
+            return false;
+        }
+
         List<Person> persons = personDAO.loadPersons();
-        Customer customer = null;
-        Seller seller = null;
         List<Product> products = productDAO.loadProducts();
-        List<Product> productsSold = new ArrayList<>();
 
-        for (Person person : persons) {
+        Customer customer = findCustomer(persons, customerId);
+        Seller seller = findSeller(persons, sellerId);
 
-            if (person instanceof Customer && person.getId().equals(customerId)) {
-                customer = (Customer) person;
+        if (customer == null) {
+            System.out.println("No se encontró el cliente.");
+            return false;
+        }
+
+        if (seller == null) {
+            System.out.println("No se encontró el vendedor.");
+            return false;
+        }
+
+        List<Product> itemsToSell = new ArrayList<>();
+        Map<String, Integer> productCounts = new HashMap<>();
+        Map<String, Integer> accessoryCounts = new HashMap<>();
+
+        Map<String, Product> productsById = new HashMap<>();
+        Map<String, Accessory> accessoriesById = new HashMap<>();
+
+        // Buscar todos los artículos y contar cuántas unidades se solicitan.
+        for (String rawId : itemIds) {
+            if (rawId == null || rawId.trim().isEmpty()) {
+                System.out.println("Hay un ID de artículo vacío.");
+                return false;
             }
 
-            if (person instanceof Seller && person.getId().equals(sellerId)) {
-                seller = (Seller) person;
+            String itemId = rawId.trim();
+            Product product = findProduct(products, itemId);
+
+            if (product != null) {
+                String key = product.getId().toLowerCase();
+                productCounts.put(key, productCounts.getOrDefault(key, 0) + 1);
+                productsById.put(key, product);
+                itemsToSell.add(product);
+                continue;
             }
 
+            Accessory accessory = accessoryService.findById(itemId);
+
+            if (accessory != null) {
+                String key = accessory.getId().toLowerCase();
+                accessoryCounts.put(key,
+                        accessoryCounts.getOrDefault(key, 0) + 1);
+                accessoriesById.put(key, accessory);
+                itemsToSell.add(accessory);
+                continue;
+            }
+
+            System.out.println("No se encontró el producto o accesorio: " + itemId);
+            return false;
         }
 
-        for (String productId : productIds) {
+        // Comprobar el stock total requerido de cada producto.
+        for (Map.Entry<String, Integer> entry : productCounts.entrySet()) {
+            Product product = productsById.get(entry.getKey());
+            int requested = entry.getValue();
 
-            for (Product product : products) {
-
-                if (product.getId().equals(productId)) {
-
-                    if (product.getStock() <= 0) {
-                        return;
-                    }
-
-                    productsSold.add(product);
-                    break;
-                }
+            if (product.getStock() < requested) {
+                System.out.println(
+                        "Stock insuficiente para el producto: " + product.getId());
+                return false;
             }
         }
 
-        if (productsSold.size() != productIds.size()) {
-            return;
+        // Comprobar el stock total requerido de cada accesorio.
+        for (Map.Entry<String, Integer> entry : accessoryCounts.entrySet()) {
+            Accessory accessory = accessoriesById.get(entry.getKey());
+            int requested = entry.getValue();
+
+            if (accessory.getStock() < requested) {
+                System.out.println(
+                        "Stock insuficiente para el accesorio: "
+                                + accessory.getId());
+                return false;
+            }
         }
 
-        if (customer == null || seller == null || productsSold.isEmpty()) {
-            return;
+        // Actualizar inventario de productos.
+        for (Map.Entry<String, Integer> entry : productCounts.entrySet()) {
+            Product product = productsById.get(entry.getKey());
+            product.setStock(product.getStock() - entry.getValue());
         }
 
-        for (Product product : productsSold) {
-            product.setStock(product.getStock() - 1);
-        }
-        
         productDAO.saveProducts(products);
-        
-        Sale sale = new Sale(saleId, date, productsSold, customer, seller);
+
+        // Actualizar inventario de accesorios.
+        for (Map.Entry<String, Integer> entry : accessoryCounts.entrySet()) {
+            Accessory accessory = accessoriesById.get(entry.getKey());
+            int newStock = accessory.getStock() - entry.getValue();
+
+            boolean updated = accessoryService.updateStock(
+                    accessory.getId(),
+                    newStock
+            );
+
+            if (!updated) {
+                System.out.println(
+                        "No se pudo actualizar el stock del accesorio: "
+                                + accessory.getId());
+                return false;
+            }
+        }
+
+        Sale sale = new Sale(
+                saleId.trim(),
+                date,
+                itemsToSell,
+                customer,
+                seller
+        );
+
         sales.add(sale);
         saleDAO.saveSales(sales);
 
+        System.out.println("Venta registrada correctamente.");
+        return true;
     }
 
-    /**
-     * Returns all registered sales.
-     *
-     * @return a list containing all sales
-     */
     public List<Sale> listSales() {
         return new ArrayList<>(sales);
     }
 
-    /**
-     * Returns the purchase history of a specific customer.
-     *
-     * @param customerId identifier of the customer
-     * @return a list containing the sales associated with the customer
-     */
     public List<Sale> getPurchasesByCustomer(String customerId) {
         List<Sale> customerSales = new ArrayList<>();
 
         for (Sale sale : sales) {
-            if (sale.getCustomer().getId().equals(customerId)) {
+            if (sale.getCustomer().getId().equalsIgnoreCase(customerId)) {
                 customerSales.add(sale);
             }
         }
@@ -137,21 +190,55 @@ public class SaleService {
         return customerSales;
     }
 
-    /**
-     * Returns the sales history of a specific seller.
-     *
-     * @param sellerId identifier of the seller
-     * @return a list containing the sales associated with the seller
-     */
     public List<Sale> getSalesBySeller(String sellerId) {
         List<Sale> sellerSales = new ArrayList<>();
 
         for (Sale sale : sales) {
-            if (sale.getSeller().getId().equals(sellerId)) {
+            if (sale.getSeller().getId().equalsIgnoreCase(sellerId)) {
                 sellerSales.add(sale);
             }
         }
 
         return sellerSales;
+    }
+
+    private Customer findCustomer(List<Person> persons, String customerId) {
+        if (customerId == null) {
+            return null;
+        }
+
+        for (Person person : persons) {
+            if (person instanceof Customer
+                    && person.getId().equalsIgnoreCase(customerId.trim())) {
+                return (Customer) person;
+            }
+        }
+
+        return null;
+    }
+
+    private Seller findSeller(List<Person> persons, String sellerId) {
+        if (sellerId == null) {
+            return null;
+        }
+
+        for (Person person : persons) {
+            if (person instanceof Seller
+                    && person.getId().equalsIgnoreCase(sellerId.trim())) {
+                return (Seller) person;
+            }
+        }
+
+        return null;
+    }
+
+    private Product findProduct(List<Product> products, String itemId) {
+        for (Product product : products) {
+            if (product.getId().equalsIgnoreCase(itemId)) {
+                return product;
+            }
+        }
+
+        return null;
     }
 }

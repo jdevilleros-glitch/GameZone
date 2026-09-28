@@ -1,6 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
 package com.misco.gamezone;
 
 import com.misco.gamezone.dao.PersonDAO;
@@ -13,40 +10,39 @@ import com.misco.gamezone.service.ProductService;
 import com.misco.gamezone.service.SaleService;
 import com.misco.gamezone.ui.Menu;
 
-/**
- * Starts the GameZone application and initializes its services.
- *
- * @author USUARIO
- */
 public class Main {
 
     public static void main(String[] args) {
-        // DAOs
+
         ProductDAO productDAO = new ProductDAO("data/products.txt");
         PersonDAO personDAO = new PersonDAO("data/persons.txt");
+
+        AccessoryRepository accessoryRepository =
+                new AccessoryRepository();
+
+        ProductService productService =
+                new ProductService(productDAO);
+
+        PersonService personService =
+                new PersonService(personDAO);
+
+        AccessoryService accessoryService =
+                new AccessoryService(accessoryRepository);
 
         SaleDAO saleDAO = new SaleDAO(
                 "data/sales.txt",
                 productDAO,
-                personDAO
+                personDAO,
+                accessoryRepository
         );
-
-        // Repositories
-        AccessoryRepository accessoryRepository = new AccessoryRepository();
-
-        // Services
-        ProductService productService = new ProductService(productDAO);
-        PersonService personService = new PersonService(personDAO);
-        AccessoryService accessoryService
-                = new AccessoryService(accessoryRepository);
 
         SaleService saleService = new SaleService(
                 saleDAO,
                 personDAO,
-                productDAO
+                productDAO,
+                accessoryService
         );
 
-        // User Interface
         Menu menu = new Menu(
                 productService,
                 personService,
@@ -57,4 +53,3 @@ public class Main {
         menu.showMainMenu();
     }
 }
-
