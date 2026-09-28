@@ -21,6 +21,8 @@ public class Sale {
     private List<Product> productsSold;
     private Customer customer;
     private Seller seller;
+    private String appliedPromotionName;
+    private double discountAmount;
 
     /**
      * Creates a new sale and calculates its total amount based on the prices of
@@ -95,6 +97,10 @@ public class Sale {
         return seller;
     }
 
+    public void setTotal(double total) {
+        this.total = total;
+    }
+
     /**
      * Calculates the total amount of the sale by adding the prices of all
      * products sold.
@@ -109,5 +115,35 @@ public class Sale {
         }
 
         return total;
+    }
+
+    public String getAppliedPromotionName() {
+        return appliedPromotionName;
+    }
+
+    public void setAppliedPromotionName(String appliedPromotionName) {
+        this.appliedPromotionName = appliedPromotionName;
+    }
+
+    public double getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(double discountAmount) {
+        this.discountAmount = discountAmount;
+    }
+
+    public String generateReceipt() {
+        double subtotal = total + discountAmount;
+
+        String promotion = appliedPromotionName != null
+                ? appliedPromotionName
+                : "No promotion";
+
+        return "Sale ID: " + saleId
+                + "\nSubtotal: $" + subtotal
+                + "\nPromotion: " + promotion
+                + "\nDiscount: $" + discountAmount
+                + "\nTotal: $" + total;
     }
 }
