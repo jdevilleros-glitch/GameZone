@@ -4,12 +4,16 @@ import com.misco.gamezone.dao.PersonDAO;
 import com.misco.gamezone.dao.ProductDAO;
 import com.misco.gamezone.dao.SaleDAO;
 import com.misco.gamezone.model.Accessory;
+import com.misco.gamezone.model.Console;
 import com.misco.gamezone.model.Customer;
+import com.misco.gamezone.model.ExtendedWarranty;
 import com.misco.gamezone.model.Person;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Promotion;
 import com.misco.gamezone.model.Sale;
 import com.misco.gamezone.model.Seller;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -28,6 +32,7 @@ public class SaleService {
     private final ProductDAO productDAO;
     private final AccessoryService accessoryService;
     private final PromotionService promotionService;
+    private final WarrantyService warrantyService;
 
     private final List<Sale> sales;
 
@@ -45,13 +50,15 @@ public class SaleService {
             PersonDAO personDAO,
             ProductDAO productDAO,
             AccessoryService accessoryService,
-            PromotionService promotionService) {
+            PromotionService promotionService,
+            WarrantyService warrantyService) {
 
         this.saleDAO = saleDAO;
         this.personDAO = personDAO;
         this.productDAO = productDAO;
         this.accessoryService = accessoryService;
         this.promotionService = promotionService;
+        this.warrantyService = warrantyService;
         this.sales = saleDAO.loadSales();
     }
 
@@ -70,7 +77,8 @@ public class SaleService {
             Date date,
             String customerId,
             String sellerId,
-            List<String> itemIds) {
+            List<String> itemIds,
+            List<String> extendedWarrantyProductIds) {
 
         if (saleId == null || saleId.trim().isEmpty()
                 || date == null
@@ -103,7 +111,6 @@ public class SaleService {
         Map<String, Product> productsById = new HashMap<>();
         Map<String, Accessory> accessoriesById = new HashMap<>();
 
-        // Find every requested item and count the required units.
         for (String rawId : itemIds) {
 
             if (rawId == null || rawId.trim().isEmpty()) {
@@ -148,7 +155,6 @@ public class SaleService {
             return false;
         }
 
-        // Validate product stock.
         for (Map.Entry<String, Integer> entry
                 : productCounts.entrySet()) {
 
@@ -163,7 +169,6 @@ public class SaleService {
             }
         }
 
-        // Validate accessory stock.
         for (Map.Entry<String, Integer> entry
                 : accessoryCounts.entrySet()) {
 
@@ -207,7 +212,82 @@ public class SaleService {
             sale.setTotal(sale.getTotal() - discount);
         }
 
-        // Update product inventory.
+        LocalDate saleDate = date.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate();
+
+        for (Product product : itemsToSell) {
+
+            if (!(product instanceof Console)) {
+                continue;
+            }
+
+            boolean extendedRequested
+                    = extendedWarrantyProductIds != null
+                    && extendedWarrantyProductIds.stream()
+                            .anyMatch(id
+                                    -> id.equalsIgnoreCase(product.getId()));
+
+            if (extendedRequested) {
+
+                ExtendedWarranty extendedWarranty
+                        = warrantyService.assignExtendedWarranty(
+                                product,
+                                sale,
+                                saleDate
+                        );
+
+                sale.setTotal(
+                        sale.getTotal()
+                        + extendedWarranty.getAdditionalCost()
+                );
+
+            } else {
+
+                warrantyService.assignBasicWarranty(
+                        product,
+                        sale,
+                        saleDate
+                );
+            }
+        }
+
+        for (Product product : itemsToSell) {
+
+            if (!(product instanceof Console)) {
+                continue;
+            }
+
+            boolean extendedRequested
+                    = extendedWarrantyProductIds != null
+                    && extendedWarrantyProductIds.stream()
+                            .anyMatch(id
+                                    -> id.equalsIgnoreCase(product.getId()));
+
+            if (extendedRequested) {
+
+                ExtendedWarranty extendedWarranty
+                        = warrantyService.assignExtendedWarranty(
+                                product,
+                                sale,
+                                saleDate
+                        );
+
+                sale.setTotal(
+                        sale.getTotal()
+                        + extendedWarranty.getAdditionalCost()
+                );
+
+            } else {
+
+                warrantyService.assignBasicWarranty(
+                        product,
+                        sale,
+                        saleDate
+                );
+            }
+        }
+
         for (Map.Entry<String, Integer> entry
                 : productCounts.entrySet()) {
 
@@ -221,7 +301,6 @@ public class SaleService {
 
         productDAO.saveProducts(products);
 
-        // Update accessory inventory.
         for (Map.Entry<String, Integer> entry
                 : accessoryCounts.entrySet()) {
 
