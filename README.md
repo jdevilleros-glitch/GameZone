@@ -46,3 +46,41 @@ The application uses the files located in the `data` directory to store and retr
 - View purchase history by customer.
 - View sales history by seller.
 - Update product inventory when a sale is registered.
+
+## Promotion Module
+
+The system includes a promotion management module that allows GameZone Unicesar to register and automatically apply discounts to sales.
+
+### Promotion Types
+
+The system supports three types of promotions:
+
+- **Percentage Discount:** applies a percentage discount to the total sale amount.
+- **Category Discount:** applies a percentage discount only to products that belong to a specific category (`VIDEOGAME` or `CONSOLE`).
+- **Bulk Purchase Discount:** applies a percentage discount to the total sale when the minimum required number of products is reached.
+
+### Promotion Features
+
+The promotion module allows users to:
+
+- Register percentage, category, and bulk purchase promotions.
+- List all registered promotions.
+- List promotions that are currently active.
+- Store and load promotions from `data/promotions.csv`.
+- Automatically evaluate active promotions when registering a sale.
+- Apply only the promotion that provides the highest monetary discount.
+- Store the applied promotion and discount amount in each sale.
+- Display the subtotal, applied promotion, discount amount, and final total in the sale receipt.
+- View the details of a specific sale, including its applied discount.
+
+### Promotion Architecture
+
+The promotion module follows the layered architecture of the project:
+
+`UI → Service → DAO → Model`
+
+The abstract `Promotion` class defines the common structure and behavior of promotions, while `PercentageDiscount`, `CategoryDiscount`, and `BulkPurchaseDiscount` implement their specific discount calculation rules through polymorphism.
+
+`PromotionService` contains the business logic for identifying active promotions and selecting the promotion that provides the highest discount for a sale.
+
+Promotion data is persisted in `data/promotions.csv`.

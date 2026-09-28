@@ -72,7 +72,7 @@ public class SaleDAO {
 
                 String[] data = line.split(";");
 
-                if (data.length != 5) {
+                if (data.length != 5 && data.length != 7) {
                     continue;
                 }
 
@@ -82,6 +82,13 @@ public class SaleDAO {
                 String sellerId = data[3];
                 String[] productIds = data[4].split(",");
 
+                String promotionName = null;
+                double discountAmount = 0;
+
+                if (data.length == 7) {
+                    promotionName = data[5].isEmpty() ? null : data[5];
+                    discountAmount = Double.parseDouble(data[6]);
+                }
                 Customer customer = null;
                 Seller seller = null;
 
@@ -115,6 +122,13 @@ public class SaleDAO {
                             customer,
                             seller
                     );
+
+                    sale.setAppliedPromotionName(promotionName);
+                    sale.setDiscountAmount(discountAmount);
+
+                    if (discountAmount > 0) {
+                        sale.setTotal(sale.getTotal() - discountAmount);
+                    }
 
                     sales.add(sale);
 
@@ -157,11 +171,17 @@ public class SaleDAO {
                         productIds += product.getId();
                     }
 
+                    String promotionName = sale.getAppliedPromotionName() == null
+                            ? ""
+                            : sale.getAppliedPromotionName();
+
                     String line = sale.getSaleId() + ";"
                             + dateFormat.format(sale.getDate()) + ";"
                             + sale.getCustomer().getId() + ";"
                             + sale.getSeller().getId() + ";"
-                            + productIds;
+                            + productIds + ";"
+                            + promotionName + ";"
+                            + sale.getDiscountAmount();
 
                     writer.write(line);
                     writer.newLine();

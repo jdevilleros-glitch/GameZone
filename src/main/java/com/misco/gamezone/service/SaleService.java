@@ -10,6 +10,7 @@ import com.misco.gamezone.dao.SaleDAO;
 import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Person;
 import com.misco.gamezone.model.Product;
+import com.misco.gamezone.model.Promotion;
 import com.misco.gamezone.model.Sale;
 import com.misco.gamezone.model.Seller;
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ public class SaleService {
     private List<Sale> sales;
     private PersonDAO personDAO;
     private ProductDAO productDAO;
+    private PromotionService promotionService;
 
     /**
      * Creates a SaleService and loads the existing sales.
@@ -37,11 +39,13 @@ public class SaleService {
      * @param personDAO DAO used to retrieve customers and sellers
      * @param productDAO DAO used to retrieve products
      */
-    public SaleService(SaleDAO saleDAO, PersonDAO personDAO, ProductDAO productDAO) {
+    public SaleService(SaleDAO saleDAO, PersonDAO personDAO, ProductDAO productDAO, PromotionService promotionService) {
         this.saleDAO = saleDAO;
         this.personDAO = personDAO;
         this.productDAO = productDAO;
         this.sales = saleDAO.loadSales();
+        this.promotionService = promotionService;
+
     }
 
     /**
@@ -102,12 +106,24 @@ public class SaleService {
         for (Product product : productsSold) {
             product.setStock(product.getStock() - 1);
         }
-        
+
         productDAO.saveProducts(products);
-        
+
         Sale sale = new Sale(saleId, date, productsSold, customer, seller);
+
+        Promotion bestPromotion = promotionService.findBestPromotionFor(sale);
+
+        if (bestPromotion != null) {
+            double discount = bestPromotion.calculateDiscount(sale);
+
+            sale.setAppliedPromotionName(bestPromotion.getName());
+            sale.setDiscountAmount(discount);
+            sale.setTotal(sale.getTotal() - discount);
+        }
+
         sales.add(sale);
         saleDAO.saveSales(sales);
+
         return true;
 
     }
@@ -155,5 +171,22 @@ public class SaleService {
         }
 
         return sellerSales;
+    }
+
+    /**
+     * Finds a sale by its ID.
+     *
+     * @param saleId ID of the sale to find
+     * @return the matching sale, or null if it does not exist
+     */
+    public Sale findSaleById(String saleId) {
+
+        for (Sale sale : sales) {
+            if (sale.getSaleId().equalsIgnoreCase(saleId)) {
+                return sale;
+            }
+        }
+
+        return null;
     }
 }
