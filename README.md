@@ -128,3 +128,23 @@ The monthly balance is calculated using:
 `Monthly Balance = Sales Total - Returns Total`
 
 Sales and returns are filtered according to the month and year selected by the user.
+
+### Warranty Module
+
+The Warranty module manages warranties associated with consoles sold by GameZone.
+
+It includes two warranty types:
+
+- **Basic Warranty:** 6 months, no additional cost.
+- **Extended Warranty:** 12 months, with an additional cost equal to 10% of the product price.
+
+The module supports:
+
+- Automatic warranty assignment during console sales.
+- Optional extended warranty selection during the sales process.
+- Warranty persistence using `WarrantyDAO`.
+- Warranty lookup by product and sale.
+- Listing all registered warranties.
+- Listing currently active warranties.
+- Listing warranties that expire within a specified number of days.
+- Warranty certificate generation.
