@@ -1,69 +1,54 @@
 # Promotion Module Analysis
 
-## 1. How should promotions be represented in the existing object-oriented model?
+## 1. Promotion hierarchy and polymorphism
 
-Promotions should be represented through an abstract `Promotion` class that defines the common attributes and behavior shared by all promotion types.
+The three promotion types share common attributes and behaviors but have different discount calculation rules. This is represented through an abstract `Promotion` class containing the common attributes: ID, name, start date, and end date.
 
-The `Promotion` class contains the promotion ID, name, start date, and end date. It also provides the `isActive(LocalDate date)` method to determine whether a promotion is valid on a specific date.
+`PercentageDiscount`, `CategoryDiscount`, and `BulkPurchaseDiscount` extend `Promotion` and implement their own discount calculation.
 
-Because each promotion calculates its discount differently, the class declares the abstract method `calculateDiscount(Sale sale)`. Each specific promotion type implements this method according to its own rules.
+Polymorphism allows the rest of the system to work with objects of type `Promotion` without needing to know the specific subclass. Each promotion calculates its discount through its own implementation of `calculateDiscount(Sale sale)`.
 
-Three concrete subclasses extend `Promotion`:
+## 2. Abstract discount calculation
 
-- `PercentageDiscount`: applies a percentage discount to the total value of the sale.
-- `CategoryDiscount`: applies a percentage discount only to products belonging to a specified category.
-- `BulkPurchaseDiscount`: applies a percentage discount to the total sale when a minimum number of products is reached.
+The base `Promotion` class cannot provide a general implementation of the discount calculation because each promotion type follows a different business rule.
 
-This design uses inheritance and polymorphism and makes it possible to add new promotion types without changing the basic promotion abstraction.
+For this reason, the method is declared as abstract:
 
-## 2. How should the promotion module interact with the existing sales module?
+`public abstract double calculateDiscount(Sale sale);`
 
-The promotion module should interact with the sales module through the service layer.
+This declaration requires every concrete subclass of `Promotion` to provide its own implementation of the method.
 
-When `SaleService` creates a sale, it requests the best applicable promotion from `PromotionService`. The promotion service evaluates the active promotions and uses each promotion's `calculateDiscount(Sale sale)` implementation to determine the monetary discount.
+## 3. Selection of the best promotion
 
-After the best promotion is selected, `SaleService` stores the promotion name and discount amount in the `Sale` object and adjusts the final total.
+The logic for selecting the promotion that provides the highest monetary discount is located in `PromotionService`, specifically in the `findBestPromotionFor(Sale sale)` method.
 
-This approach keeps promotion selection logic outside the user interface and prevents the model classes from handling file persistence.
+The method obtains the active promotions, calculates the discount provided by each one, and returns the promotion that produces the highest monetary discount.
 
-## 3. How should the system determine the best promotion for a sale?
+This responsibility belongs to the service layer because selecting the best promotion is business logic.
 
-The system should first obtain all promotions that are active on the current date.
+It should not be implemented in `Sale` because that class represents the sale and should not be responsible for searching or comparing available promotions.
 
-`PromotionService.findBestPromotionFor(Sale sale)` evaluates every active promotion by calling its `calculateDiscount(Sale sale)` method. It compares the monetary discount produced by each promotion and keeps the promotion that provides the highest discount.
+It should also not be implemented in the console menu because the UI layer is responsible for user interaction, not business rules.
 
-Only one promotion is selected for a sale, so discounts are not cumulative.
+## 4. Changes to Sale and generateReceipt
 
-If no active promotion produces a discount greater than zero, the method returns `null` and the sale keeps its original total.
+The `Sale` class is extended with two additional private attributes:
 
-## 4. How should promotions be persisted?
+- `appliedPromotionName`
+- `discountAmount`
 
-Promotion persistence should be handled by `PromotionDAO`, following the same DAO approach already used by the project for products, people, and sales.
+Their corresponding getters and setters allow the applied promotion information to be stored in the sale.
 
-Promotions are stored in `data/promotions.csv`. Each record contains a discriminator that identifies the promotion type followed by its corresponding data.
+The `generateReceipt()` method is updated to display the subtotal, the name of the applied promotion, the discount amount, and the final total after the discount.
 
-The formats used are:
+These are additive modifications. The existing sale information and behavior remain available while the new fields extend the information stored and displayed for each sale.
 
-- `PERCENTAGE;id;name;startDate;endDate;percentage`
-- `CATEGORY;id;name;startDate;endDate;percentage;targetCategory`
-- `BULK;id;name;startDate;endDate;minimumQuantity;percentage`
+## 5. Promotion validity validation
 
-`PromotionDAO.loadAll()` reconstructs the appropriate promotion subclass according to the discriminator.
+Promotion validity is handled by both `Promotion` and `PromotionService`, but each class has a different responsibility.
 
-`PromotionDAO.saveAll()` writes the current promotion collection to the file.
+The `Promotion` class implements `isActive(LocalDate date)`, which determines whether a specific date is within the promotion's start and end dates. This keeps the rule related to the promotion's own state inside the model.
 
-If the promotions file does not exist, the DAO creates it and returns an empty promotion list, allowing the application to continue operating without a file-not-found error.
+`PromotionService` uses this method in `listActivePromotions()` with the current date to obtain only the promotions that are currently valid.
 
-## 5. What changes are required in the existing system?
-
-The existing system requires changes in the model, DAO, service, and UI layers.
-
-In the model layer, the promotion hierarchy is added with `Promotion`, `PercentageDiscount`, `CategoryDiscount`, and `BulkPurchaseDiscount`. The `Sale` class is extended with `appliedPromotionName` and `discountAmount`, and its receipt includes the subtotal, applied promotion, discount, and final total.
-
-In the DAO layer, `PromotionDAO` is added to manage promotion persistence. `SaleDAO` is also updated so that the applied promotion and discount amount remain available after restarting the application.
-
-In the service layer, `PromotionService` manages promotion registration, listing, active promotion filtering, promotion searches, and selection of the promotion that produces the highest monetary discount. `SaleService` uses this service when registering a sale.
-
-In the UI layer, the main menu includes promotion management options for registering the three promotion types and listing all or currently active promotions. The sales menu also allows the user to view the details of a specific sale, including the promotion and discount applied.
-
-These changes preserve the layered structure of the application and keep responsibilities separated between the UI, service, DAO, and model layers.
+This separation keeps the date-range validation in the model while the service coordinates the business operation of finding the promotions that can currently be applied.

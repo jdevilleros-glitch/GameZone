@@ -49,6 +49,16 @@ classDiagram
         +String generateReceipt()
     }
 
+    class Product {
+        <<abstract>>
+        -String id
+        -String name
+        -double price
+        -int stock
+        +double getPrice()
+        +String getProductType()
+    }
+
     class PromotionDAO {
         -String filePath
         +List~Promotion~ loadAll()
@@ -78,6 +88,8 @@ classDiagram
     Promotion <|-- BulkPurchaseDiscount
 
     Promotion ..> Sale : calculates discount
+    Sale --> Product : contains
+    CategoryDiscount ..> Product : evaluates category
 
     PromotionDAO --> Promotion : persists
     PromotionService --> PromotionDAO : uses
@@ -96,3 +108,5 @@ classDiagram
 - `PromotionService` manages promotions and determines the best active promotion for a sale.
 - `SaleService` uses `PromotionService` when registering a sale.
 - `Sale` stores the applied promotion name and discount amount.
+- `Sale` contains the products included in the transaction.
+- `CategoryDiscount` evaluates the product type to calculate the discount only for products that match the target category.
