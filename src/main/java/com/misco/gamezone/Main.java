@@ -12,13 +12,19 @@ import com.misco.gamezone.service.SaleService;
 import com.misco.gamezone.ui.Menu;
 
 /**
+ * Starts the GameZone application and initializes the required
+ * persistence, service, and user interface components.
  *
  * @author USUARIO
  */
 public class Main {
-
+/**
+     * Application entry point.
+     *
+     * @param args command-line arguments
+     */
     public static void main(String[] args) {
-        // DAOs
+        
         ProductDAO productDAO = new ProductDAO("data/products.txt");
         PersonDAO personDAO = new PersonDAO("data/persons.txt");
 
@@ -27,8 +33,8 @@ public class Main {
                 productDAO,
                 personDAO
         );
-
-        // Services
+        
+        
         ProductService productService = new ProductService(productDAO);
         PersonService personService = new PersonService(personDAO);
 
@@ -38,7 +44,7 @@ public class Main {
                 productDAO
         );
 
-        // User Interface
+
         Menu menu = new Menu(
                 productService,
                 personService,

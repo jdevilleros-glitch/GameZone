@@ -394,7 +394,7 @@ public class Menu {
                 productIds
         );
         if (registered){
-        System.out.println("Sale operation completed.");    
+        System.out.println("Sale registered successfully.");    
         } else {
             System.out.println("Sale could not be registered. Check the entered data.");
         }
