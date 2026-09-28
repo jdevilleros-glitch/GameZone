@@ -4,7 +4,9 @@
  */
 package com.misco.gamezone.service;
 
+import com.misco.gamezone.dao.SaleDAO;
 import com.misco.gamezone.dao.WarrantyDAO;
+import com.misco.gamezone.dao.WarrantyDAO.WarrantyRecord;
 import com.misco.gamezone.model.BasicWarranty;
 import com.misco.gamezone.model.ExtendedWarranty;
 import com.misco.gamezone.model.Product;
@@ -22,16 +24,99 @@ import java.util.List;
 public class WarrantyService {
 
     private final WarrantyDAO warrantyDAO;
+    private final SaleDAO saleDAO;
+    private final ProductService productService;
     private final List<Warranty> warranties;
 
     /**
-     * Creates a warranty service and loads existing warranties.
+     * Creates a warranty service and resolves stored warranty references.
      *
      * @param warrantyDAO warranty data access object
+     * @param saleDAO sale data access object
+     * @param productService product service
      */
-    public WarrantyService(WarrantyDAO warrantyDAO) {
+    public WarrantyService(
+            WarrantyDAO warrantyDAO,
+            SaleDAO saleDAO,
+            ProductService productService) {
+
         this.warrantyDAO = warrantyDAO;
-        this.warranties = warrantyDAO.loadAll();
+        this.saleDAO = saleDAO;
+        this.productService = productService;
+        this.warranties = new ArrayList<>();
+
+        loadWarranties();
+    }
+
+    /**
+     * Loads warranty records and resolves their product and sale references.
+     */
+    private void loadWarranties() {
+
+        List<WarrantyRecord> records = warrantyDAO.loadAll();
+        List<Sale> sales = saleDAO.loadSales();
+
+        for (WarrantyRecord record : records) {
+
+            Product product
+                    = productService.findProductById(record.getProductId());
+
+            Sale sale = findSaleById(
+                    sales,
+                    record.getSaleId()
+            );
+
+            if (product == null || sale == null) {
+                continue;
+            }
+
+            Warranty warranty;
+
+            if ("BASIC".equalsIgnoreCase(record.getType())) {
+
+                warranty = new BasicWarranty(
+                        record.getWarrantyId(),
+                        product,
+                        sale,
+                        record.getStartDate()
+                );
+
+            } else if ("EXTENDED".equalsIgnoreCase(record.getType())) {
+
+                warranty = new ExtendedWarranty(
+                        record.getWarrantyId(),
+                        product,
+                        sale,
+                        record.getStartDate()
+                );
+
+            } else {
+                continue;
+            }
+
+            warranties.add(warranty);
+        }
+    }
+
+    /**
+     * Finds a sale by its identifier.
+     *
+     * @param sales sales to search
+     * @param saleId sale identifier
+     * @return matching sale or null if not found
+     */
+    private Sale findSaleById(
+            List<Sale> sales,
+            String saleId) {
+
+        for (Sale sale : sales) {
+
+            if (sale.getSaleId().equalsIgnoreCase(saleId)) {
+                return sale;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -102,7 +187,7 @@ public class WarrantyService {
             if (warranty.getProduct().getId()
                     .equalsIgnoreCase(productId)
                     && warranty.getSale().getSaleId()
-                    .equalsIgnoreCase(saleId)) {
+                            .equalsIgnoreCase(saleId)) {
 
                 return warranty;
             }
@@ -150,7 +235,8 @@ public class WarrantyService {
 
         if (daysAhead < 0) {
             throw new IllegalArgumentException(
-                    "Days ahead cannot be negative.");
+                    "Days ahead cannot be negative."
+            );
         }
 
         LocalDate today = LocalDate.now();
@@ -170,6 +256,50 @@ public class WarrantyService {
         }
 
         return expiringWarranties;
+    }
+
+    /**
+     * Cancels all warranties associated with a product in a specific sale.
+     * Basic warranties are cancelled without refund. Extended warranties return
+     * their additional cost as refundable value.
+     *
+     * @param productId product identifier
+     * @param saleId sale identifier
+     * @return refundable cost of cancelled extended warranties
+     */
+    public double cancelWarranties(
+            String productId,
+            String saleId) {
+
+        double refundableWarrantyCost = 0;
+
+        List<Warranty> warrantiesToRemove
+                = new ArrayList<>();
+
+        for (Warranty warranty : warranties) {
+
+            if (warranty.getProduct().getId()
+                    .equalsIgnoreCase(productId)
+                    && warranty.getSale().getSaleId()
+                            .equalsIgnoreCase(saleId)) {
+
+                if (warranty instanceof ExtendedWarranty) {
+                    refundableWarrantyCost
+                            += ((ExtendedWarranty) warranty)
+                                    .getAdditionalCost();
+                }
+
+                warrantiesToRemove.add(warranty);
+            }
+        }
+
+        warranties.removeAll(warrantiesToRemove);
+
+        if (!warrantiesToRemove.isEmpty()) {
+            warrantyDAO.saveAll(warranties);
+        }
+
+        return refundableWarrantyCost;
     }
 
     /**
@@ -195,6 +325,9 @@ public class WarrantyService {
             }
         }
 
-        return String.format("W%03d", highestNumber + 1);
+        return String.format(
+                "W%03d",
+                highestNumber + 1
+        );
     }
 }

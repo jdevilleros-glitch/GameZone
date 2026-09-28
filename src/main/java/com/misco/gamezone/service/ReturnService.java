@@ -7,6 +7,8 @@ package com.misco.gamezone.service;
 import com.misco.gamezone.dao.ReturnDAO;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Return;
+import com.misco.gamezone.model.Accessory;
+import com.misco.gamezone.model.Console;
 import com.misco.gamezone.model.Sale;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -24,6 +26,8 @@ public class ReturnService {
     private SaleService saleService;
     private ProductService productService;
     private List<Return> returns;
+    private AccessoryService accessoryService;
+    private WarrantyService warrantyService;
 
     /**
      * Creates the return service and loads the stored returns.
@@ -31,14 +35,21 @@ public class ReturnService {
      * @param returnDAO DAO used for return persistence
      * @param saleService service used to retrieve sales
      * @param productService service used to restore product stock
+     * @param accessoryService service used to restore accessory stock
+     * @param warrantyService service used to manage warranty cancellations
      */
-    public ReturnService(ReturnDAO returnDAO,
+    public ReturnService(
+            ReturnDAO returnDAO,
             SaleService saleService,
-            ProductService productService) {
+            ProductService productService,
+            AccessoryService accessoryService,
+            WarrantyService warrantyService) {
 
         this.returnDAO = returnDAO;
         this.saleService = saleService;
         this.productService = productService;
+        this.accessoryService = accessoryService;
+        this.warrantyService = warrantyService;
         this.returns = returnDAO.loadAll();
     }
 
@@ -122,14 +133,46 @@ public class ReturnService {
                 reason
         );
 
+        double warrantyRefundAmount = 0;
+
         for (Product product : returnedProducts) {
-            boolean restored = productService.restoreStock(
-                    product.getId(), 1);
+
+            if (product instanceof Console) {
+
+                warrantyRefundAmount
+                        += warrantyService.cancelWarranties(
+                                product.getId(),
+                                sale.getSaleId()
+                        );
+            }
+        }
+
+        returnRecord.setWarrantyRefundAmount(
+                warrantyRefundAmount
+        );
+
+        for (Product product : returnedProducts) {
+
+            boolean restored;
+
+            if (product instanceof Accessory) {
+
+                restored = accessoryService.restoreStock(
+                        product.getId(), 1
+                );
+
+            } else {
+
+                restored = productService.restoreStock(
+                        product.getId(), 1
+                );
+            }
 
             if (!restored) {
                 throw new IllegalArgumentException(
-                        "Stock could not be restored for product "
-                        + product.getId() + ".");
+                        "Stock could not be restored for item "
+                        + product.getId() + "."
+                );
             }
         }
 
@@ -192,16 +235,16 @@ public class ReturnService {
     }
 
     /**
-     * Calculates the monthly balance by subtracting refunds from sales.
+     * Calculates the total value of sales for a specific month and year. The
+     * final sale total includes discounts and extended warranty costs.
      *
      * @param month month to calculate, from 1 to 12
      * @param year year to calculate
-     * @return monthly sales total minus monthly returns total
+     * @return total sales for the selected month
      */
-    public double generateMonthlyBalance(int month, int year) {
+    public double calculateMonthlySales(int month, int year) {
 
         double salesTotal = 0;
-        double returnsTotal = 0;
 
         for (Sale sale : saleService.listSales()) {
 
@@ -217,16 +260,50 @@ public class ReturnService {
             }
         }
 
+        return salesTotal;
+    }
+
+    /**
+     * Calculates the total value of returns for a specific month and year.
+     *
+     * @param month month to calculate, from 1 to 12
+     * @param year year to calculate
+     * @return total returns for the selected month
+     */
+    public double calculateMonthlyReturns(int month, int year) {
+
+        double returnsTotal = 0;
+
         for (Return returnRecord : returns) {
 
-            LocalDate returnDate = returnRecord.getReturnDate();
+            LocalDate returnDate
+                    = returnRecord.getReturnDate();
 
             if (returnDate.getMonthValue() == month
                     && returnDate.getYear() == year) {
 
-                returnsTotal += returnRecord.getRefundAmount();
+                returnsTotal
+                        += returnRecord.getRefundAmount();
             }
         }
+
+        return returnsTotal;
+    }
+
+    /**
+     * Calculates the monthly balance by subtracting returns from sales.
+     *
+     * @param month month to calculate, from 1 to 12
+     * @param year year to calculate
+     * @return monthly sales minus monthly returns
+     */
+    public double generateMonthlyBalance(int month, int year) {
+
+        double salesTotal
+                = calculateMonthlySales(month, year);
+
+        double returnsTotal
+                = calculateMonthlyReturns(month, year);
 
         return salesTotal - returnsTotal;
     }

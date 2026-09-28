@@ -201,6 +201,7 @@ public class SaleService {
                 = promotionService.findBestPromotionFor(sale);
 
         if (bestPromotion != null) {
+
             double discount
                     = bestPromotion.calculateDiscount(sale);
 
@@ -209,24 +210,35 @@ public class SaleService {
             );
 
             sale.setDiscountAmount(discount);
-            sale.setTotal(sale.getTotal() - discount);
         }
 
         LocalDate saleDate = date.toInstant()
                 .atZone(ZoneId.systemDefault())
                 .toLocalDate();
 
+        double extendedWarrantyCost = 0;
+
         for (Product product : itemsToSell) {
 
             if (!(product instanceof Console)) {
                 continue;
             }
 
+            /*
+     * Every console receives a basic warranty.
+             */
+            warrantyService.assignBasicWarranty(
+                    product,
+                    sale,
+                    saleDate
+            );
+
             boolean extendedRequested
                     = extendedWarrantyProductIds != null
                     && extendedWarrantyProductIds.stream()
                             .anyMatch(id
-                                    -> id.equalsIgnoreCase(product.getId()));
+                                    -> id.equalsIgnoreCase(
+                                    product.getId()));
 
             if (extendedRequested) {
 
@@ -237,56 +249,16 @@ public class SaleService {
                                 saleDate
                         );
 
-                sale.setTotal(
-                        sale.getTotal()
-                        + extendedWarranty.getAdditionalCost()
-                );
-
-            } else {
-
-                warrantyService.assignBasicWarranty(
-                        product,
-                        sale,
-                        saleDate
-                );
+                extendedWarrantyCost
+                        += extendedWarranty.getAdditionalCost();
             }
         }
 
-        for (Product product : itemsToSell) {
+        sale.setExtendedWarrantyCost(
+                extendedWarrantyCost
+        );
 
-            if (!(product instanceof Console)) {
-                continue;
-            }
-
-            boolean extendedRequested
-                    = extendedWarrantyProductIds != null
-                    && extendedWarrantyProductIds.stream()
-                            .anyMatch(id
-                                    -> id.equalsIgnoreCase(product.getId()));
-
-            if (extendedRequested) {
-
-                ExtendedWarranty extendedWarranty
-                        = warrantyService.assignExtendedWarranty(
-                                product,
-                                sale,
-                                saleDate
-                        );
-
-                sale.setTotal(
-                        sale.getTotal()
-                        + extendedWarranty.getAdditionalCost()
-                );
-
-            } else {
-
-                warrantyService.assignBasicWarranty(
-                        product,
-                        sale,
-                        saleDate
-                );
-            }
-        }
+        sale.calculateFinalTotal();
 
         for (Map.Entry<String, Integer> entry
                 : productCounts.entrySet()) {
@@ -325,9 +297,11 @@ public class SaleService {
         }
 
         sales.add(sale);
+
         saleDAO.saveSales(sales);
 
-        System.out.println("Sale registered successfully.");
+        System.out.println(
+                "Sale registered successfully.");
         return true;
     }
 

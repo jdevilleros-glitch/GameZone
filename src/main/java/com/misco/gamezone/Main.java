@@ -59,19 +59,21 @@ public class Main {
                 accessoryRepository
         );
 
-        WarrantyDAO warrantyDAO = new WarrantyDAO(
-                "data/warranties.csv",
-                saleDAO,
-                productDAO
-        );
+        WarrantyDAO warrantyDAO
+                = new WarrantyDAO("data/warranties.csv");
 
         WarrantyService warrantyService
-                = new WarrantyService(warrantyDAO);
+                = new WarrantyService(
+                        warrantyDAO,
+                        saleDAO,
+                        productService
+                );
 
         ReturnDAO returnDAO = new ReturnDAO(
                 "data/returns.csv",
                 saleDAO,
-                productDAO
+                productDAO,
+                accessoryRepository
         );
 
         PromotionService promotionService
@@ -89,7 +91,9 @@ public class Main {
         ReturnService returnService = new ReturnService(
                 returnDAO,
                 saleService,
-                productService
+                productService,
+                accessoryService,
+                warrantyService
         );
 
         Menu menu = new Menu(

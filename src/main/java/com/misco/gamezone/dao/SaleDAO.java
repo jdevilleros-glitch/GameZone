@@ -20,6 +20,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * Handles sale persistence.
+ *
+ * @author USUARIO
+ */
 public class SaleDAO {
 
     private final String filePath;
@@ -40,6 +45,7 @@ public class SaleDAO {
     }
 
     public List<Sale> loadSales() {
+
         List<Sale> sales = new ArrayList<>();
 
         List<Person> persons = personDAO.loadPersons();
@@ -52,10 +58,14 @@ public class SaleDAO {
             return sales;
         }
 
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat dateFormat
+                = new SimpleDateFormat("yyyy-MM-dd");
+
         dateFormat.setLenient(false);
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader
+                = new BufferedReader(new FileReader(file))) {
+
             String line;
 
             while ((line = reader.readLine()) != null) {
@@ -66,10 +76,13 @@ public class SaleDAO {
 
                 String[] fields = line.split(";", -1);
 
-                // Old sales contain 5 fields.
-                // Sales with promotions contain 7 fields.
-                if (fields.length != 5 && fields.length != 7) {
-                    System.out.println("Invalid sale record: " + line);
+                if (fields.length != 5
+                        && fields.length != 7
+                        && fields.length != 9) {
+
+                    System.out.println(
+                            "Invalid sale record: " + line
+                    );
                     continue;
                 }
 
@@ -81,67 +94,70 @@ public class SaleDAO {
 
                 String promotionName = null;
                 double discountAmount = 0;
+                double warrantyCost = 0;
+                Double persistedTotal = null;
 
-                if (fields.length == 7) {
+                if (fields.length >= 7) {
+
                     promotionName = fields[5].trim().isEmpty()
                             ? null
                             : fields[5].trim();
 
-                    try {
-                        discountAmount = Double.parseDouble(fields[6].trim());
-                    } catch (NumberFormatException e) {
-                        System.out.println(
-                                "Invalid discount amount in sale: " + saleId);
-                        continue;
-                    }
+                    discountAmount
+                            = Double.parseDouble(fields[6].trim());
+                }
+
+                if (fields.length == 9) {
+                    warrantyCost
+                            = Double.parseDouble(fields[7].trim());
+
+                    persistedTotal
+                            = Double.parseDouble(fields[8].trim());
                 }
 
                 try {
+
                     Date date = dateFormat.parse(dateText);
 
-                    Customer customer = findCustomer(persons, customerId);
-                    Seller seller = findSeller(persons, sellerId);
+                    Customer customer
+                            = findCustomer(persons, customerId);
+
+                    Seller seller
+                            = findSeller(persons, sellerId);
 
                     if (customer == null || seller == null) {
-                        System.out.println(
-                                "Customer or seller not found for sale: "
-                                        + saleId);
                         continue;
                     }
 
-                    List<Product> itemsSold = new ArrayList<>();
-                    boolean validItems = true;
+                    List<Product> itemsSold
+                            = new ArrayList<>();
 
                     if (!itemIdsText.isEmpty()) {
-                        String[] itemIds = itemIdsText.split(",");
+
+                        String[] itemIds
+                                = itemIdsText.split(",");
 
                         for (String rawId : itemIds) {
+
                             String itemId = rawId.trim();
 
-                            if (itemId.isEmpty()) {
-                                continue;
-                            }
-
-                            Product item = findProduct(products, itemId);
+                            Product item
+                                    = findProduct(products, itemId);
 
                             if (item == null) {
-                                item = findAccessory(accessories, itemId);
+                                item = findAccessory(
+                                        accessories,
+                                        itemId
+                                );
                             }
 
-                            if (item == null) {
-                                System.out.println(
-                                        "Item " + itemId
-                                                + " not found for sale "
-                                                + saleId);
-                                validItems = false;
-                                break;
+                            if (item != null) {
+                                itemsSold.add(item);
                             }
-
-                            itemsSold.add(item);
                         }
                     }
 
-                    if (!validItems || itemsSold.isEmpty()) {
+                    if (itemsSold.isEmpty()) {
                         continue;
                     }
 
@@ -153,32 +169,49 @@ public class SaleDAO {
                             seller
                     );
 
-                    sale.setAppliedPromotionName(promotionName);
-                    sale.setDiscountAmount(discountAmount);
+                    sale.setAppliedPromotionName(
+                            promotionName
+                    );
 
-                    if (discountAmount > 0) {
-                        sale.setTotal(
-                                sale.getTotal() - discountAmount
-                        );
+                    sale.setDiscountAmount(
+                            discountAmount
+                    );
+
+                    sale.setExtendedWarrantyCost(
+                            warrantyCost
+                    );
+
+                    if (persistedTotal != null) {
+                        sale.setTotal(persistedTotal);
+                    } else {
+                        sale.calculateFinalTotal();
                     }
 
                     sales.add(sale);
 
-                } catch (ParseException | IllegalArgumentException e) {
+                } catch (ParseException
+                        | IllegalArgumentException e) {
+
                     System.out.println(
-                            "Could not load sale record: " + line);
+                            "Could not load sale record: "
+                            + line
+                    );
                 }
             }
 
         } catch (IOException e) {
+
             System.out.println(
-                    "Error loading sales: " + e.getMessage());
+                    "Error loading sales: "
+                    + e.getMessage()
+            );
         }
 
         return sales;
     }
 
     public void saveSales(List<Sale> sales) {
+
         File file = new File(filePath);
         File parent = file.getParentFile();
 
@@ -186,16 +219,20 @@ public class SaleDAO {
             parent.mkdirs();
         }
 
-        SimpleDateFormat dateFormat =
-                new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat dateFormat
+                = new SimpleDateFormat("yyyy-MM-dd");
 
-        try (BufferedWriter writer =
-                     new BufferedWriter(new FileWriter(file))) {
+        try (BufferedWriter writer
+                = new BufferedWriter(new FileWriter(file))) {
 
             for (Sale sale : sales) {
-                StringBuilder itemIds = new StringBuilder();
 
-                for (Product item : sale.getProductsSold()) {
+                StringBuilder itemIds
+                        = new StringBuilder();
+
+                for (Product item
+                        : sale.getProductsSold()) {
+
                     if (itemIds.length() > 0) {
                         itemIds.append(",");
                     }
@@ -203,27 +240,33 @@ public class SaleDAO {
                     itemIds.append(item.getId());
                 }
 
-                String promotionName =
-                        sale.getAppliedPromotionName() == null
-                                ? ""
-                                : sale.getAppliedPromotionName();
+                String promotionName
+                        = sale.getAppliedPromotionName() == null
+                        ? ""
+                        : sale.getAppliedPromotionName();
 
-                String line =
-                        sale.getSaleId() + ";"
-                                + dateFormat.format(sale.getDate()) + ";"
-                                + sale.getCustomer().getId() + ";"
-                                + sale.getSeller().getId() + ";"
-                                + itemIds + ";"
-                                + promotionName + ";"
-                                + sale.getDiscountAmount();
+                String line
+                        = sale.getSaleId() + ";"
+                        + dateFormat.format(
+                                sale.getDate()) + ";"
+                        + sale.getCustomer().getId() + ";"
+                        + sale.getSeller().getId() + ";"
+                        + itemIds + ";"
+                        + promotionName + ";"
+                        + sale.getDiscountAmount() + ";"
+                        + sale.getExtendedWarrantyCost() + ";"
+                        + sale.getTotal();
 
                 writer.write(line);
                 writer.newLine();
             }
 
         } catch (IOException e) {
+
             System.out.println(
-                    "Error saving sales: " + e.getMessage());
+                    "Error saving sales: "
+                    + e.getMessage()
+            );
         }
     }
 
@@ -232,8 +275,11 @@ public class SaleDAO {
             String customerId) {
 
         for (Person person : persons) {
+
             if (person instanceof Customer
-                    && person.getId().equalsIgnoreCase(customerId)) {
+                    && person.getId()
+                            .equalsIgnoreCase(customerId)) {
+
                 return (Customer) person;
             }
         }
@@ -246,8 +292,11 @@ public class SaleDAO {
             String sellerId) {
 
         for (Person person : persons) {
+
             if (person instanceof Seller
-                    && person.getId().equalsIgnoreCase(sellerId)) {
+                    && person.getId()
+                            .equalsIgnoreCase(sellerId)) {
+
                 return (Seller) person;
             }
         }
@@ -260,7 +309,10 @@ public class SaleDAO {
             String itemId) {
 
         for (Product product : products) {
-            if (product.getId().equalsIgnoreCase(itemId)) {
+
+            if (product.getId()
+                    .equalsIgnoreCase(itemId)) {
+
                 return product;
             }
         }
@@ -273,7 +325,10 @@ public class SaleDAO {
             String itemId) {
 
         for (Accessory accessory : accessories) {
-            if (accessory.getId().equalsIgnoreCase(itemId)) {
+
+            if (accessory.getId()
+                    .equalsIgnoreCase(itemId)) {
+
                 return accessory;
             }
         }

@@ -930,8 +930,31 @@ public class Menu {
         double percentage = scanner.nextDouble();
         scanner.nextLine();
 
-        System.out.print("Enter category (VIDEOGAME or CONSOLE): ");
-        String targetCategory = scanner.nextLine();
+        System.out.println("Select category:");
+        System.out.println("1. VIDEOGAME");
+        System.out.println("2. CONSOLE");
+        System.out.println("3. ACCESSORY");
+        System.out.print("Option: ");
+
+        int categoryOption = scanner.nextInt();
+        scanner.nextLine();
+
+        String targetCategory;
+
+        switch (categoryOption) {
+            case 1:
+                targetCategory = "VIDEOGAME";
+                break;
+            case 2:
+                targetCategory = "CONSOLE";
+                break;
+            case 3:
+                targetCategory = "ACCESSORY";
+                break;
+            default:
+                System.out.println("Invalid category.");
+                return;
+        }
 
         promotionService.registerCategoryDiscount(
                 id,
@@ -1193,7 +1216,8 @@ public class Menu {
     }
 
     /**
-     * Displays the balance for a selected month and year.
+     * Displays monthly sales, returns, and final balance for a selected month
+     * and year.
      */
     private void showMonthlyBalance() {
 
@@ -1211,11 +1235,32 @@ public class Menu {
             return;
         }
 
-        double balance = returnService.generateMonthlyBalance(month, year);
+        double salesTotal
+                = returnService.calculateMonthlySales(
+                        month, year);
+
+        double returnsTotal
+                = returnService.calculateMonthlyReturns(
+                        month, year);
+
+        double balance
+                = returnService.generateMonthlyBalance(
+                        month, year);
 
         System.out.println(
-                "Balance for " + month + "/" + year + ": $" + balance
-        );
+                "\n===== MONTHLY REPORT =====");
+
+        System.out.println(
+                "Period: " + month + "/" + year);
+
+        System.out.println(
+                "Total Sales: $" + salesTotal);
+
+        System.out.println(
+                "Total Returns: $" + returnsTotal);
+
+        System.out.println(
+                "Final Balance: $" + balance);
     }
 
     /**
