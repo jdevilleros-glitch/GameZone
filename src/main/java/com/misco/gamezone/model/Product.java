@@ -103,6 +103,19 @@ public abstract class Product {
     public void setStock(int stock) {
         this.stock = stock;
     }
+    
+    /**Returns the common product information
+     * 
+     * @return the product description
+     * 
+     */
+    
+    public String getDescription(){
+        return "ID: "+ id
+                + ", Name: " + name
+                + ", Price: " + price
+                + ", Stock: " + stock;
+    }
 
     /**
      * Returns the type of the product.

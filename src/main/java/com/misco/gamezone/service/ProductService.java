@@ -82,10 +82,33 @@ public class ProductService {
      */
     public boolean updateStock(String productId, int newStock) {
         products = productDAO.loadProducts();
-        
+
         for (Product product : products) {
             if (product.getId().equals(productId)) {
                 product.setStock(newStock);
+                productDAO.saveProducts(products);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Restores stock for a product by increasing its current quantity.
+     *
+     * @param productId unique identifier of the product
+     * @param quantity quantity to restore
+     * @return true if the product was found and its stock was restored, false
+     * otherwise
+     */
+    public boolean restoreStock(String productId, int quantity) {
+        products = productDAO.loadProducts();
+
+        for (Product product : products) {
+            if (product.getId().equals(productId)) {
+                int restoredStock = product.getStock() + quantity;
+                product.setStock(restoredStock);
                 productDAO.saveProducts(products);
                 return true;
             }
