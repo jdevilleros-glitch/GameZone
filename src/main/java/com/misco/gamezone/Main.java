@@ -6,12 +6,15 @@ package com.misco.gamezone;
 import com.misco.gamezone.dao.PersonDAO;
 import com.misco.gamezone.dao.ProductDAO;
 import com.misco.gamezone.dao.SaleDAO;
+import com.misco.gamezone.persistence.AccessoryRepository;
+import com.misco.gamezone.service.AccessoryService;
 import com.misco.gamezone.service.PersonService;
 import com.misco.gamezone.service.ProductService;
 import com.misco.gamezone.service.SaleService;
 import com.misco.gamezone.ui.Menu;
 
 /**
+ * Starts the GameZone application and initializes its services.
  *
  * @author USUARIO
  */
@@ -28,9 +31,14 @@ public class Main {
                 personDAO
         );
 
+        // Repositories
+        AccessoryRepository accessoryRepository = new AccessoryRepository();
+
         // Services
         ProductService productService = new ProductService(productDAO);
         PersonService personService = new PersonService(personDAO);
+        AccessoryService accessoryService
+                = new AccessoryService(accessoryRepository);
 
         SaleService saleService = new SaleService(
                 saleDAO,
@@ -42,9 +50,11 @@ public class Main {
         Menu menu = new Menu(
                 productService,
                 personService,
-                saleService
+                saleService,
+                accessoryService
         );
 
         menu.showMainMenu();
     }
 }
+
