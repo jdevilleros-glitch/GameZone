@@ -118,4 +118,32 @@ public class AccessoryService {
         repository.saveAll(accessories);
         return true;
     }
+
+    /**
+     * Restores stock for an accessory.
+     *
+     * @param accessoryId accessory identifier
+     * @param quantity quantity to restore
+     * @return true if the stock was restored successfully
+     */
+    public boolean restoreStock(String accessoryId, int quantity) {
+
+        if (quantity <= 0) {
+            return false;
+        }
+
+        Accessory accessory = findById(accessoryId);
+
+        if (accessory == null) {
+            return false;
+        }
+
+        accessory.setStock(
+                accessory.getStock() + quantity
+        );
+
+        repository.saveAll(accessories);
+
+        return true;
+    }
 }
