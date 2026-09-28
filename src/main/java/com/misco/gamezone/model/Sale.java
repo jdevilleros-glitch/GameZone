@@ -97,6 +97,11 @@ public class Sale {
         return seller;
     }
 
+    /**
+     * Updates the final total amount of the sale.
+     *
+     * @param total the new total amount
+     */
     public void setTotal(double total) {
         this.total = total;
     }
@@ -117,22 +122,48 @@ public class Sale {
         return total;
     }
 
+    /**
+     * Returns the name of the promotion applied to the sale.
+     *
+     * @return the applied promotion name, or null if no promotion was applied
+     */
     public String getAppliedPromotionName() {
         return appliedPromotionName;
     }
 
+    /**
+     * Sets the name of the promotion applied to the sale.
+     *
+     * @param appliedPromotionName the name of the applied promotion
+     */
     public void setAppliedPromotionName(String appliedPromotionName) {
         this.appliedPromotionName = appliedPromotionName;
     }
 
+    /**
+     * Returns the discount amount applied to the sale.
+     *
+     * @return the applied discount amount
+     */
     public double getDiscountAmount() {
         return discountAmount;
     }
 
+    /**
+     * Sets the discount amount applied to the sale.
+     *
+     * @param discountAmount the discount amount to apply
+     */
     public void setDiscountAmount(double discountAmount) {
         this.discountAmount = discountAmount;
     }
 
+    /**
+     * Generates a receipt containing the sale subtotal, applied promotion,
+     * discount amount, and final total.
+     *
+     * @return the formatted sale receipt
+     */
     public String generateReceipt() {
         double subtotal = total + discountAmount;
 
