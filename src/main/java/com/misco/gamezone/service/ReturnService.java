@@ -212,16 +212,16 @@ public class ReturnService {
     }
 
     /**
-     * Calculates the monthly balance by subtracting refunds from sales.
+     * Calculates the total value of sales for a specific month and year. The
+     * final sale total includes discounts and extended warranty costs.
      *
      * @param month month to calculate, from 1 to 12
      * @param year year to calculate
-     * @return monthly sales total minus monthly returns total
+     * @return total sales for the selected month
      */
-    public double generateMonthlyBalance(int month, int year) {
+    public double calculateMonthlySales(int month, int year) {
 
         double salesTotal = 0;
-        double returnsTotal = 0;
 
         for (Sale sale : saleService.listSales()) {
 
@@ -237,16 +237,50 @@ public class ReturnService {
             }
         }
 
+        return salesTotal;
+    }
+
+    /**
+     * Calculates the total value of returns for a specific month and year.
+     *
+     * @param month month to calculate, from 1 to 12
+     * @param year year to calculate
+     * @return total returns for the selected month
+     */
+    public double calculateMonthlyReturns(int month, int year) {
+
+        double returnsTotal = 0;
+
         for (Return returnRecord : returns) {
 
-            LocalDate returnDate = returnRecord.getReturnDate();
+            LocalDate returnDate
+                    = returnRecord.getReturnDate();
 
             if (returnDate.getMonthValue() == month
                     && returnDate.getYear() == year) {
 
-                returnsTotal += returnRecord.getRefundAmount();
+                returnsTotal
+                        += returnRecord.getRefundAmount();
             }
         }
+
+        return returnsTotal;
+    }
+
+    /**
+     * Calculates the monthly balance by subtracting returns from sales.
+     *
+     * @param month month to calculate, from 1 to 12
+     * @param year year to calculate
+     * @return monthly sales minus monthly returns
+     */
+    public double generateMonthlyBalance(int month, int year) {
+
+        double salesTotal
+                = calculateMonthlySales(month, year);
+
+        double returnsTotal
+                = calculateMonthlyReturns(month, year);
 
         return salesTotal - returnsTotal;
     }
