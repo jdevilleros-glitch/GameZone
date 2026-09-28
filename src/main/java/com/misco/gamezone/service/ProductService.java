@@ -116,4 +116,23 @@ public class ProductService {
 
         return false;
     }
+
+    /**
+     * Finds a product by its identifier.
+     *
+     * @param productId product identifier
+     * @return matching product or null if not found
+     */
+    public Product findProductById(String productId) {
+
+        products = productDAO.loadProducts();
+
+        for (Product product : products) {
+            if (product.getId().equalsIgnoreCase(productId)) {
+                return product;
+            }
+        }
+
+        return null;
+    }
 }
