@@ -930,8 +930,31 @@ public class Menu {
         double percentage = scanner.nextDouble();
         scanner.nextLine();
 
-        System.out.print("Enter category (VIDEOGAME or CONSOLE): ");
-        String targetCategory = scanner.nextLine();
+        System.out.println("Select category:");
+        System.out.println("1. VIDEOGAME");
+        System.out.println("2. CONSOLE");
+        System.out.println("3. ACCESSORY");
+        System.out.print("Option: ");
+
+        int categoryOption = scanner.nextInt();
+        scanner.nextLine();
+
+        String targetCategory;
+
+        switch (categoryOption) {
+            case 1:
+                targetCategory = "VIDEOGAME";
+                break;
+            case 2:
+                targetCategory = "CONSOLE";
+                break;
+            case 3:
+                targetCategory = "ACCESSORY";
+                break;
+            default:
+                System.out.println("Invalid category.");
+                return;
+        }
 
         promotionService.registerCategoryDiscount(
                 id,

@@ -77,10 +77,23 @@ public class CategoryDiscount extends Promotion {
      */
     @Override
     public double calculateDiscount(Sale sale) {
+
         double categoryTotal = 0;
 
         for (Product product : sale.getProductsSold()) {
-            if (product.getProductType().equalsIgnoreCase(targetCategory)) {
+
+            boolean matchesCategory;
+
+            if (product instanceof Accessory) {
+                matchesCategory
+                        = "ACCESSORY".equalsIgnoreCase(targetCategory);
+            } else {
+                matchesCategory
+                        = product.getProductType()
+                                .equalsIgnoreCase(targetCategory);
+            }
+
+            if (matchesCategory) {
                 categoryTotal += product.getPrice();
             }
         }
