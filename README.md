@@ -435,3 +435,58 @@ The final GameZone application integrates the following modules:
 7. Warranty
 
 These modules cooperate through the service layer while maintaining their individual responsibilities.
+
+
+## Validation and Exception Handling
+
+GameZone Unicesar includes a validation and exception-handling layer designed to improve error reporting and separate validation responsibilities from business operations.
+
+### Custom Exceptions
+
+The `com.misco.gamezone.exceptions` package defines the following exception hierarchy:
+
+- `GameZoneException`: Base unchecked exception containing an error code.
+- `ResourceNotFoundException`: Indicates that a requested resource does not exist.
+- `BusinessRuleException`: Indicates that a business rule has been violated.
+- `InvalidDataException`: Indicates invalid input data or values.
+- `PersistenceException`: Indicates an error while reading or writing persistent data.
+
+### Validators
+
+The `com.misco.gamezone.validation` package contains three validator classes:
+
+- `ProductValidator`: Validates product information, existence, and stock availability.
+- `PersonValidator`: Validates person information, existence, and identifier uniqueness.
+- `SaleValidator`: Validates sale information and existence.
+
+Services invoke these validators to keep validation logic separate from business operations.
+
+### Service and Persistence Integration
+
+The `ProductService`, `PersonService`, and `SaleService` classes use custom exceptions to report validation failures and business rule violations.
+
+The `ProductDAO`, `PersonDAO`, and `SaleDAO` classes convert file-related I/O failures into `PersistenceException`, preserving the original cause.
+
+### Console Error Handling
+
+The `Menu` class uses a centralized `executeSafely` method to handle different exception categories and display controlled error messages.
+
+Input-reading methods also validate numeric values to prevent invalid input from terminating the application unexpectedly.
+
+### Documentation
+
+Additional technical documentation is available in:
+
+- [Exception Handling Analysis](docs/exception-analysis.md)
+- [Exception Handling Class Diagram](docs/exception-class-diagram.md)
+
+### Verification
+
+The following scenarios have been tested manually:
+
+- Duplicate product identifier.
+- Sale registration with a nonexistent customer identifier.
+- Invalid numeric input during product registration.
+- Invalid date input.
+
+A complete regression test of the existing operations is recommended before merging the feature branch.
