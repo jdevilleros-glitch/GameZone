@@ -3,6 +3,9 @@ package com.misco.gamezone.service;
 import com.misco.gamezone.dao.PersonDAO;
 import com.misco.gamezone.dao.ProductDAO;
 import com.misco.gamezone.dao.SaleDAO;
+import com.misco.gamezone.exceptions.BusinessRuleException;
+import com.misco.gamezone.exceptions.InvalidDataException;
+import com.misco.gamezone.exceptions.ResourceNotFoundException;
 import com.misco.gamezone.model.Accessory;
 import com.misco.gamezone.model.Console;
 import com.misco.gamezone.model.Customer;
@@ -12,9 +15,10 @@ import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Promotion;
 import com.misco.gamezone.model.Sale;
 import com.misco.gamezone.model.Seller;
+import com.misco.gamezone.validation.ProductValidator;
+import com.misco.gamezone.validation.SaleValidator;
 import java.time.LocalDate;
 import java.time.ZoneId;
-
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -22,8 +26,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Provides the business logic for managing sales in GameZone. Supports
- * products, accessories, promotions, stock updates, and sale queries.
+ * Provides business operations for managing sales in GameZone.
+ *
+ * Supports products, accessories, promotions, warranties,
+ * stock updates, and sale queries.
+ *
+ * Uses validators and custom exceptions to enforce business rules.
+ *
+ * @author USUARIO
  */
 public class SaleService {
 
@@ -44,6 +54,7 @@ public class SaleService {
      * @param productDAO DAO used to retrieve products
      * @param accessoryService service used to manage accessories
      * @param promotionService service used to manage promotions
+     * @param warrantyService service used to manage warranties
      */
     public SaleService(
             SaleDAO saleDAO,
@@ -65,12 +76,24 @@ public class SaleService {
     /**
      * Registers a sale containing products and/or accessories.
      *
+     * Validates the sale information, customer, seller, items,
+     * and available stock before registering the sale.
+     *
+     * Applies the best available promotion and assigns warranties
+     * to consoles before calculating the final total.
+     *
      * @param saleId unique sale identifier
      * @param date sale date
      * @param customerId customer identifier
      * @param sellerId seller identifier
      * @param itemIds identifiers of products or accessories
+     * @param extendedWarrantyProductIds console identifiers requiring
+     * extended warranty
      * @return true if the sale was registered successfully
+     * @throws InvalidDataException if sale information is invalid
+     * @throws ResourceNotFoundException if a customer, seller, or item
+     * cannot be found
+     * @throws BusinessRuleException if a business rule is violated
      */
     public boolean registerSale(
             String saleId,
@@ -80,11 +103,28 @@ public class SaleService {
             List<String> itemIds,
             List<String> extendedWarrantyProductIds) {
 
-        if (saleId == null || saleId.trim().isEmpty()
-                || date == null
-                || itemIds == null || itemIds.isEmpty()) {
-            System.out.println("Sale information is incomplete.");
-            return false;
+        if (saleId == null || saleId.trim().isEmpty()) {
+            throw new InvalidDataException(
+                    "saleId", "Sale ID cannot be empty."
+            );
+        }
+
+        if (date == null) {
+            throw new InvalidDataException(
+                    "date", "Sale date cannot be null."
+            );
+        }
+
+        if (itemIds == null || itemIds.isEmpty()) {
+            throw new BusinessRuleException(
+                    "A sale must contain at least one item."
+            );
+        }
+
+        if (findSaleById(saleId) != null) {
+            throw new BusinessRuleException(
+                    "A sale with ID " + saleId + " already exists."
+            );
         }
 
         List<Person> persons = personDAO.loadPersons();
@@ -94,13 +134,15 @@ public class SaleService {
         Seller seller = findSeller(persons, sellerId);
 
         if (customer == null) {
-            System.out.println("Customer not found.");
-            return false;
+            throw new ResourceNotFoundException(
+                    "Customer", String.valueOf(customerId)
+            );
         }
 
         if (seller == null) {
-            System.out.println("Seller not found.");
-            return false;
+            throw new ResourceNotFoundException(
+                    "Seller", String.valueOf(sellerId)
+            );
         }
 
         List<Product> itemsToSell = new ArrayList<>();
@@ -114,8 +156,9 @@ public class SaleService {
         for (String rawId : itemIds) {
 
             if (rawId == null || rawId.trim().isEmpty()) {
-                System.out.println("An item ID is empty.");
-                return false;
+                throw new InvalidDataException(
+                        "itemId", "Item ID cannot be empty."
+                );
             }
 
             String itemId = rawId.trim();
@@ -150,10 +193,16 @@ public class SaleService {
                 continue;
             }
 
-            System.out.println(
-                    "Product or accessory not found: " + itemId);
-            return false;
+            throw new ResourceNotFoundException(
+                    "Product or accessory", itemId
+            );
         }
+
+        SaleValidator.validateSaleData(
+                customer,
+                seller,
+                itemsToSell
+        );
 
         for (Map.Entry<String, Integer> entry
                 : productCounts.entrySet()) {
@@ -161,12 +210,10 @@ public class SaleService {
             Product product = productsById.get(entry.getKey());
             int requested = entry.getValue();
 
-            if (product.getStock() < requested) {
-                System.out.println(
-                        "Insufficient stock for product: "
-                        + product.getId());
-                return false;
-            }
+            ProductValidator.validateStockAvailability(
+                    product,
+                    requested
+            );
         }
 
         for (Map.Entry<String, Integer> entry
@@ -178,10 +225,10 @@ public class SaleService {
             int requested = entry.getValue();
 
             if (accessory.getStock() < requested) {
-                System.out.println(
+                throw new BusinessRuleException(
                         "Insufficient stock for accessory: "
-                        + accessory.getId());
-                return false;
+                        + accessory.getId()
+                );
             }
         }
 
@@ -225,7 +272,7 @@ public class SaleService {
             }
 
             /*
-     * Every console receives a basic warranty.
+             * Every console receives a basic warranty.
              */
             warrantyService.assignBasicWarranty(
                     product,
@@ -237,8 +284,9 @@ public class SaleService {
                     = extendedWarrantyProductIds != null
                     && extendedWarrantyProductIds.stream()
                             .anyMatch(id
-                                    -> id.equalsIgnoreCase(
-                                    product.getId()));
+                                    -> id != null
+                                    && id.equalsIgnoreCase(
+                                            product.getId()));
 
             if (extendedRequested) {
 
@@ -289,10 +337,10 @@ public class SaleService {
                     );
 
             if (!updated) {
-                System.out.println(
+                throw new BusinessRuleException(
                         "Could not update accessory stock: "
-                        + accessory.getId());
-                return false;
+                        + accessory.getId()
+                );
             }
         }
 
@@ -300,15 +348,14 @@ public class SaleService {
 
         saleDAO.saveSales(sales);
 
-        System.out.println(
-                "Sale registered successfully.");
+        System.out.println("Sale registered successfully.");
         return true;
     }
 
     /**
      * Returns all registered sales.
      *
-     * @return copy of the registered sales
+     * @return a copy of the registered sales
      */
     public List<Sale> listSales() {
         return new ArrayList<>(sales);
@@ -324,6 +371,10 @@ public class SaleService {
             String customerId) {
 
         List<Sale> customerSales = new ArrayList<>();
+
+        if (customerId == null) {
+            return customerSales;
+        }
 
         for (Sale sale : sales) {
             if (sale.getCustomer().getId()
@@ -345,6 +396,10 @@ public class SaleService {
 
         List<Sale> sellerSales = new ArrayList<>();
 
+        if (sellerId == null) {
+            return sellerSales;
+        }
+
         for (Sale sale : sales) {
             if (sale.getSeller().getId()
                     .equalsIgnoreCase(sellerId)) {
@@ -358,8 +413,11 @@ public class SaleService {
     /**
      * Finds a sale by its identifier.
      *
+     * Performs a case-insensitive search and returns null when
+     * no matching sale exists.
+     *
      * @param saleId sale identifier
-     * @return matching sale, or null if it does not exist
+     * @return matching sale or null if not found
      */
     public Sale findSaleById(String saleId) {
 
@@ -377,6 +435,13 @@ public class SaleService {
         return null;
     }
 
+    /**
+     * Finds a customer in the provided person list.
+     *
+     * @param persons registered persons
+     * @param customerId customer identifier
+     * @return matching customer or null if not found
+     */
     private Customer findCustomer(
             List<Person> persons,
             String customerId) {
@@ -397,6 +462,13 @@ public class SaleService {
         return null;
     }
 
+    /**
+     * Finds a seller in the provided person list.
+     *
+     * @param persons registered persons
+     * @param sellerId seller identifier
+     * @return matching seller or null if not found
+     */
     private Seller findSeller(
             List<Person> persons,
             String sellerId) {
@@ -417,6 +489,13 @@ public class SaleService {
         return null;
     }
 
+    /**
+     * Finds a product in the provided product list.
+     *
+     * @param products registered products
+     * @param itemId product identifier
+     * @return matching product or null if not found
+     */
     private Product findProduct(
             List<Product> products,
             String itemId) {
