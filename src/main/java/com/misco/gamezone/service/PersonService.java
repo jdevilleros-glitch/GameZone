@@ -5,28 +5,32 @@
 package com.misco.gamezone.service;
 
 import com.misco.gamezone.dao.PersonDAO;
+import com.misco.gamezone.exceptions.BusinessRuleException;
+import com.misco.gamezone.exceptions.InvalidDataException;
 import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Person;
 import com.misco.gamezone.model.Seller;
+import com.misco.gamezone.validation.PersonValidator;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Provides the business operations related to customers and sellers. Manages
- * customer registration and the listing of persons by their role.
+ * Provides business operations related to customers and sellers.
+ *
+ * Manages customer registration and lists persons according to their role.
+ * Uses PersonValidator to validate customer data and prevent duplicate IDs.
  *
  * @author USUARIO
  */
 public class PersonService {
 
-    private PersonDAO personDAO;
+    private final PersonDAO personDAO;
     private List<Person> persons;
 
     /**
-     * Creates a PersonService using the specified PersonDAO and loads the
-     * existing persons from the data file.
+     * Creates a PersonService and loads the existing persons.
      *
-     * @param personDAO the DAO used to manage person persistence
+     * @param personDAO DAO used to manage person persistence
      */
     public PersonService(PersonDAO personDAO) {
         this.personDAO = personDAO;
@@ -36,13 +40,30 @@ public class PersonService {
     /**
      * Registers a new customer and saves the updated person list.
      *
-     * @param name the name of the customer
-     * @param id the identification code of the customer
-     * @param cellphone the phone number of the customer
-     * @param email the email address of the customer
+     * Validates the customer information and verifies that the
+     * identification code is not already registered.
+     *
+     * @param name name of the customer
+     * @param id identification code of the customer
+     * @param cellphone phone number of the customer
+     * @param email email address of the customer
+     * @throws InvalidDataException if customer information is invalid
+     * @throws BusinessRuleException if the identification code already exists
      */
-    public void registerCustomer(String name, String id, String cellphone, String email) {
+    public void registerCustomer(
+            String name,
+            String id,
+            String cellphone,
+            String email) {
+
+        PersonValidator.validatePersonData(id, name, email, cellphone);
+
+        persons = personDAO.loadPersons();
+
+        PersonValidator.validateUniquePerson(persons, id);
+
         Customer customer = new Customer(name, id, cellphone, email);
+
         persons.add(customer);
         personDAO.savePersons(persons);
     }
@@ -50,9 +71,14 @@ public class PersonService {
     /**
      * Returns all customers registered in the system.
      *
-     * @return a list containing all customers
+     * Reloads the person list and filters records by the Customer type.
+     *
+     * @return a list containing all registered customers
      */
     public List<Customer> listCustomers() {
+
+        persons = personDAO.loadPersons();
+
         List<Customer> customers = new ArrayList<>();
 
         for (Person person : persons) {
@@ -67,9 +93,14 @@ public class PersonService {
     /**
      * Returns all sellers registered in the system.
      *
-     * @return a list containing all sellers
+     * Reloads the person list and filters records by the Seller type.
+     *
+     * @return a list containing all registered sellers
      */
     public List<Seller> listSellers() {
+
+        persons = personDAO.loadPersons();
+
         List<Seller> sellers = new ArrayList<>();
 
         for (Person person : persons) {
@@ -80,5 +111,4 @@ public class PersonService {
 
         return sellers;
     }
-
 }

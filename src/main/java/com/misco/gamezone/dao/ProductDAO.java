@@ -1,23 +1,24 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.dao;
 
+import com.misco.gamezone.exceptions.PersistenceException;
 import com.misco.gamezone.model.Console;
 import com.misco.gamezone.model.Product;
 import com.misco.gamezone.model.Videogame;
-import java.util.ArrayList;
-import java.util.List;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Provides file persistence operations to all products.
- * It loads and saves product data via text file.
+ * Provides file persistence operations for products.
+ *
+ * Loads and saves videogame and console information using
+ * a text file with semicolon-separated values.
+ *
+ * Converts file operation failures into PersistenceException.
  *
  * @author USUARIO
  */
@@ -37,11 +38,15 @@ public class ProductDAO {
     /**
      * Loads the products stored in the products file.
      *
+     * Returns an empty list when the file does not exist.
+     * Throws a persistence exception if reading fails.
+     *
      * @return a list containing the stored products
+     * @throws PersistenceException if the file cannot be read
      */
     public List<Product> loadProducts() {
-        List<Product> products = new ArrayList<>();
 
+        List<Product> products = new ArrayList<>();
         Path path = Path.of(filePath);
 
         if (!Files.exists(path)) {
@@ -49,25 +54,33 @@ public class ProductDAO {
         }
 
         try (BufferedReader reader = Files.newBufferedReader(path)) {
+
             String line;
 
             while ((line = reader.readLine()) != null) {
-                String[] data = line.split(";");
+
+                String[] data = line.split(";", -1);
+
                 if (data.length != 7) {
                     continue;
                 }
+
                 double price;
                 int stock;
 
                 try {
                     price = Double.parseDouble(data[3]);
                     stock = Integer.parseInt(data[4]);
+
                 } catch (NumberFormatException e) {
-                    System.out.println("Error with the number format");
+                    System.out.println(
+                            "Invalid number format in products file."
+                    );
                     continue;
                 }
 
                 if (data[0].equals("VIDEOGAME")) {
+
                     Videogame videoGame = new Videogame(
                             data[1],
                             data[2],
@@ -78,7 +91,9 @@ public class ProductDAO {
                     );
 
                     products.add(videoGame);
+
                 } else if (data[0].equals("CONSOLE")) {
+
                     Console console = new Console(
                             data[1],
                             data[2],
@@ -89,13 +104,19 @@ public class ProductDAO {
                     );
 
                     products.add(console);
-                } else {
-                    System.out.println("Product type invalid");
-                }
 
+                } else {
+                    System.out.println(
+                            "Invalid product type in products file."
+                    );
+                }
             }
+
         } catch (IOException e) {
-            System.out.println("Error reading products file");
+            throw new PersistenceException(
+                    "Error reading products from file: " + filePath,
+                    e
+            );
         }
 
         return products;
@@ -104,12 +125,18 @@ public class ProductDAO {
     /**
      * Saves the specified products to the products file.
      *
+     * Creates the parent directory when necessary.
+     * Throws a persistence exception if writing fails.
+     *
      * @param products list of products to save
+     * @throws PersistenceException if the file cannot be written
      */
     public void saveProducts(List<Product> products) {
+
         Path path = Path.of(filePath);
 
         try {
+
             if (path.getParent() != null) {
                 Files.createDirectories(path.getParent());
             }
@@ -119,7 +146,9 @@ public class ProductDAO {
                 for (Product product : products) {
 
                     if (product instanceof Videogame) {
+
                         Videogame videoGame = (Videogame) product;
+
                         String line = "VIDEOGAME" + ";"
                                 + videoGame.getId() + ";"
                                 + videoGame.getName() + ";"
@@ -132,7 +161,9 @@ public class ProductDAO {
                         writer.newLine();
 
                     } else if (product instanceof Console) {
+
                         Console console = (Console) product;
+
                         String line = "CONSOLE" + ";"
                                 + console.getId() + ";"
                                 + console.getName() + ";"
@@ -148,7 +179,10 @@ public class ProductDAO {
             }
 
         } catch (IOException e) {
-            System.out.println("Error saving products file");
+            throw new PersistenceException(
+                    "Error saving products to file: " + filePath,
+                    e
+            );
         }
     }
 }

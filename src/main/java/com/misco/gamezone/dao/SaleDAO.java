@@ -1,5 +1,6 @@
 package com.misco.gamezone.dao;
 
+import com.misco.gamezone.exceptions.PersistenceException;
 import com.misco.gamezone.model.Accessory;
 import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Person;
@@ -21,7 +22,11 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Handles sale persistence.
+ * Manages the persistence of sales in a text file.
+ *
+ * Loads and saves sales containing products and accessories.
+ * Preserves compatibility with previous sale record formats.
+ * Converts file operation failures into PersistenceException.
  *
  * @author USUARIO
  */
@@ -32,6 +37,14 @@ public class SaleDAO {
     private final PersonDAO personDAO;
     private final AccessoryRepository accessoryRepository;
 
+    /**
+     * Creates a SaleDAO using the specified persistence dependencies.
+     *
+     * @param filePath path of the sales file
+     * @param productDAO DAO used to retrieve products
+     * @param personDAO DAO used to retrieve customers and sellers
+     * @param accessoryRepository repository used to retrieve accessories
+     */
     public SaleDAO(
             String filePath,
             ProductDAO productDAO,
@@ -44,19 +57,31 @@ public class SaleDAO {
         this.accessoryRepository = accessoryRepository;
     }
 
+    /**
+     * Loads sales from the data file.
+     *
+     * Supports legacy records containing five or seven fields
+     * and current records containing nine fields.
+     *
+     * Returns an empty list when the file does not exist.
+     * Invalid individual records are skipped.
+     *
+     * @return a list containing the loaded sales
+     * @throws PersistenceException if a file reading operation fails
+     */
     public List<Sale> loadSales() {
 
         List<Sale> sales = new ArrayList<>();
-
-        List<Person> persons = personDAO.loadPersons();
-        List<Product> products = productDAO.loadProducts();
-        List<Accessory> accessories = accessoryRepository.loadAll();
 
         File file = new File(filePath);
 
         if (!file.exists()) {
             return sales;
         }
+
+        List<Person> persons = personDAO.loadPersons();
+        List<Product> products = productDAO.loadProducts();
+        List<Accessory> accessories = accessoryRepository.loadAll();
 
         SimpleDateFormat dateFormat
                 = new SimpleDateFormat("yyyy-MM-dd");
@@ -86,36 +111,37 @@ public class SaleDAO {
                     continue;
                 }
 
-                String saleId = fields[0].trim();
-                String dateText = fields[1].trim();
-                String customerId = fields[2].trim();
-                String sellerId = fields[3].trim();
-                String itemIdsText = fields[4].trim();
-
-                String promotionName = null;
-                double discountAmount = 0;
-                double warrantyCost = 0;
-                Double persistedTotal = null;
-
-                if (fields.length >= 7) {
-
-                    promotionName = fields[5].trim().isEmpty()
-                            ? null
-                            : fields[5].trim();
-
-                    discountAmount
-                            = Double.parseDouble(fields[6].trim());
-                }
-
-                if (fields.length == 9) {
-                    warrantyCost
-                            = Double.parseDouble(fields[7].trim());
-
-                    persistedTotal
-                            = Double.parseDouble(fields[8].trim());
-                }
-
                 try {
+
+                    String saleId = fields[0].trim();
+                    String dateText = fields[1].trim();
+                    String customerId = fields[2].trim();
+                    String sellerId = fields[3].trim();
+                    String itemIdsText = fields[4].trim();
+
+                    String promotionName = null;
+                    double discountAmount = 0;
+                    double warrantyCost = 0;
+                    Double persistedTotal = null;
+
+                    if (fields.length >= 7) {
+
+                        promotionName = fields[5].trim().isEmpty()
+                                ? null
+                                : fields[5].trim();
+
+                        discountAmount
+                                = Double.parseDouble(fields[6].trim());
+                    }
+
+                    if (fields.length == 9) {
+
+                        warrantyCost
+                                = Double.parseDouble(fields[7].trim());
+
+                        persistedTotal
+                                = Double.parseDouble(fields[8].trim());
+                    }
 
                     Date date = dateFormat.parse(dateText);
 
@@ -129,13 +155,11 @@ public class SaleDAO {
                         continue;
                     }
 
-                    List<Product> itemsSold
-                            = new ArrayList<>();
+                    List<Product> itemsSold = new ArrayList<>();
 
                     if (!itemIdsText.isEmpty()) {
 
-                        String[] itemIds
-                                = itemIdsText.split(",");
+                        String[] itemIds = itemIdsText.split(",");
 
                         for (String rawId : itemIds) {
 
@@ -193,30 +217,51 @@ public class SaleDAO {
                         | IllegalArgumentException e) {
 
                     System.out.println(
-                            "Could not load sale record: "
-                            + line
+                            "Could not load sale record: " + line
                     );
                 }
             }
 
         } catch (IOException e) {
 
-            System.out.println(
-                    "Error loading sales: "
-                    + e.getMessage()
+            throw new PersistenceException(
+                    "Error reading sales from file: " + filePath,
+                    e
             );
         }
 
         return sales;
     }
 
+    /**
+     * Saves the specified sales to the data file.
+     *
+     * Stores each sale using the current nine-field format,
+     * including promotion information, discount amount,
+     * extended warranty cost, and final total.
+     *
+     * Creates the parent directory when necessary.
+     *
+     * @param sales list of sales to save
+     * @throws PersistenceException if the file cannot be written
+     */
     public void saveSales(List<Sale> sales) {
 
         File file = new File(filePath);
         File parent = file.getParentFile();
 
         if (parent != null && !parent.exists()) {
-            parent.mkdirs();
+
+            if (!parent.mkdirs() && !parent.exists()) {
+                throw new PersistenceException(
+                        "Error creating sales directory: "
+                        + parent.getPath(),
+                        new IOException(
+                                "Could not create directory: "
+                                + parent.getPath()
+                        )
+                );
+            }
         }
 
         SimpleDateFormat dateFormat
@@ -227,11 +272,9 @@ public class SaleDAO {
 
             for (Sale sale : sales) {
 
-                StringBuilder itemIds
-                        = new StringBuilder();
+                StringBuilder itemIds = new StringBuilder();
 
-                for (Product item
-                        : sale.getProductsSold()) {
+                for (Product item : sale.getProductsSold()) {
 
                     if (itemIds.length() > 0) {
                         itemIds.append(",");
@@ -247,8 +290,7 @@ public class SaleDAO {
 
                 String line
                         = sale.getSaleId() + ";"
-                        + dateFormat.format(
-                                sale.getDate()) + ";"
+                        + dateFormat.format(sale.getDate()) + ";"
                         + sale.getCustomer().getId() + ";"
                         + sale.getSeller().getId() + ";"
                         + itemIds + ";"
@@ -263,13 +305,20 @@ public class SaleDAO {
 
         } catch (IOException e) {
 
-            System.out.println(
-                    "Error saving sales: "
-                    + e.getMessage()
+            throw new PersistenceException(
+                    "Error saving sales to file: " + filePath,
+                    e
             );
         }
     }
 
+    /**
+     * Finds a customer in the provided person list.
+     *
+     * @param persons list of registered persons
+     * @param customerId identifier of the customer
+     * @return matching customer or null if not found
+     */
     private Customer findCustomer(
             List<Person> persons,
             String customerId) {
@@ -287,6 +336,13 @@ public class SaleDAO {
         return null;
     }
 
+    /**
+     * Finds a seller in the provided person list.
+     *
+     * @param persons list of registered persons
+     * @param sellerId identifier of the seller
+     * @return matching seller or null if not found
+     */
     private Seller findSeller(
             List<Person> persons,
             String sellerId) {
@@ -304,6 +360,13 @@ public class SaleDAO {
         return null;
     }
 
+    /**
+     * Finds a product in the provided product list.
+     *
+     * @param products list of registered products
+     * @param itemId identifier of the product
+     * @return matching product or null if not found
+     */
     private Product findProduct(
             List<Product> products,
             String itemId) {
@@ -320,6 +383,13 @@ public class SaleDAO {
         return null;
     }
 
+    /**
+     * Finds an accessory in the provided accessory list.
+     *
+     * @param accessories list of registered accessories
+     * @param itemId identifier of the accessory
+     * @return matching accessory or null if not found
+     */
     private Accessory findAccessory(
             List<Accessory> accessories,
             String itemId) {

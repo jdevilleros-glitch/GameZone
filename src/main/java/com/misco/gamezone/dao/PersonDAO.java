@@ -1,9 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
+
 package com.misco.gamezone.dao;
 
+import com.misco.gamezone.exceptions.PersistenceException;
 import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Person;
 import com.misco.gamezone.model.Seller;
@@ -16,8 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Manages the persistence of customers and sellers in a text file. Provides
- * operations to load and save person data.
+ * Manages the persistence of customers and sellers in a text file.
+ *
+ * Provides operations to load and save person data.
+ * Converts file operation failures into PersistenceException.
  *
  * @author USUARIO
  */
@@ -28,7 +28,7 @@ public class PersonDAO {
     /**
      * Creates a PersonDAO using the specified file path.
      *
-     * @param filePath the path of the file used to store person data
+     * @param filePath path of the file used to store person data
      */
     public PersonDAO(String filePath) {
         this.filePath = filePath;
@@ -37,11 +37,15 @@ public class PersonDAO {
     /**
      * Loads customers and sellers from the data file.
      *
+     * Returns an empty list if the file does not exist.
+     * Preserves the original data format for both person types.
+     *
      * @return a list containing the persons loaded from the file
+     * @throws PersistenceException if the file cannot be read
      */
     public List<Person> loadPersons() {
-        List<Person> persons = new ArrayList<>();
 
+        List<Person> persons = new ArrayList<>();
         Path path = Path.of(filePath);
 
         if (!Files.exists(path)) {
@@ -49,56 +53,71 @@ public class PersonDAO {
         }
 
         try (BufferedReader reader = Files.newBufferedReader(path)) {
+
             String line;
 
             while ((line = reader.readLine()) != null) {
-                String[] data = line.split(";");
+
+                String[] data = line.split(";", -1);
+
                 if (data.length != 5) {
                     continue;
                 }
 
                 if (data[0].equals("CUSTOMER")) {
+
                     Customer customer = new Customer(
-                            data[2], // name
-                            data[1], // id
-                            data[3], // cellphone
-                            data[4] // email
+                            data[2],
+                            data[1],
+                            data[3],
+                            data[4]
                     );
 
                     persons.add(customer);
 
                 } else if (data[0].equals("SELLER")) {
+
                     Seller seller = new Seller(
-                            data[2], // name
-                            data[1], // id
-                            data[3], // cellphone
-                            data[4] // employeeCode
+                            data[2],
+                            data[1],
+                            data[3],
+                            data[4]
                     );
 
                     persons.add(seller);
 
                 } else {
-                    System.out.println("Invalid person type");
+                    System.out.println(
+                            "Invalid person type in persons file."
+                    );
                 }
             }
-        } catch (IOException ex) {
-            System.out.println("Error reading persons file");
+
+        } catch (IOException e) {
+            throw new PersistenceException(
+                    "Error reading persons from file: " + filePath,
+                    e
+            );
         }
 
         return persons;
-
     }
 
     /**
-     * Saves the list of persons in the data file. Customers and sellers are
-     * stored according to their specific type.
+     * Saves the specified persons to the data file.
      *
-     * @param persons the list of persons to save
+     * Customers and sellers are stored according to their type.
+     * Creates the parent directory when necessary.
+     *
+     * @param persons list of persons to save
+     * @throws PersistenceException if the file cannot be written
      */
     public void savePersons(List<Person> persons) {
+
         Path path = Path.of(filePath);
 
         try {
+
             if (path.getParent() != null) {
                 Files.createDirectories(path.getParent());
             }
@@ -108,7 +127,9 @@ public class PersonDAO {
                 for (Person person : persons) {
 
                     if (person instanceof Customer) {
+
                         Customer customer = (Customer) person;
+
                         String line = "CUSTOMER" + ";"
                                 + customer.getId() + ";"
                                 + customer.getName() + ";"
@@ -119,7 +140,9 @@ public class PersonDAO {
                         writer.newLine();
 
                     } else if (person instanceof Seller) {
+
                         Seller seller = (Seller) person;
+
                         String line = "SELLER" + ";"
                                 + seller.getId() + ";"
                                 + seller.getName() + ";"
@@ -131,9 +154,12 @@ public class PersonDAO {
                     }
                 }
             }
+
         } catch (IOException e) {
-            System.out.println("Error saving persons file");
+            throw new PersistenceException(
+                    "Error saving persons to file: " + filePath,
+                    e
+            );
         }
     }
-
 }

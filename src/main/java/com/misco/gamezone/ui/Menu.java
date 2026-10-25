@@ -20,6 +20,11 @@ import com.misco.gamezone.service.PromotionService;
 import com.misco.gamezone.service.ReturnService;
 import com.misco.gamezone.service.SaleService;
 import com.misco.gamezone.service.WarrantyService;
+import com.misco.gamezone.exceptions.BusinessRuleException;
+import com.misco.gamezone.exceptions.InvalidDataException;
+import com.misco.gamezone.exceptions.PersistenceException;
+import com.misco.gamezone.exceptions.ResourceNotFoundException;
+import java.time.format.DateTimeParseException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
@@ -91,30 +96,29 @@ public class Menu {
             System.out.println(" ");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
-                    showProductMenu();
+                    executeSafely(() -> showProductMenu());
                     break;
                 case 2:
-                    showPersonMenu();
+                    executeSafely(() -> showPersonMenu());
                     break;
                 case 3:
-                    showSalesMenu();
+                    executeSafely(() -> showSalesMenu());
                     break;
                 case 4:
-                    showAccessoryMenu();
+                    executeSafely(() -> showAccessoryMenu());
                     break;
                 case 5:
-                    showPromotionMenu();
+                    executeSafely(() -> showPromotionMenu());
                     break;
                 case 6:
-                    showReturnMenu();
+                    executeSafely(() -> showReturnMenu());
                     break;
                 case 7:
-                    showWarrantyMenu();
+                    executeSafely(() -> showWarrantyMenu());
                     break;
                 case 0:
                     System.out.println("Exiting...");
@@ -139,8 +143,7 @@ public class Menu {
             System.out.println("0. Back");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
@@ -172,11 +175,10 @@ public class Menu {
         String name = scanner.nextLine();
 
         System.out.println("Enter product price");
-        double price = scanner.nextDouble();
+        double price = readDouble("Price");
 
         System.out.println("Enter the amount of stock of the product");
-        int stock = scanner.nextInt();
-        scanner.nextLine();
+        int stock = readInteger("Stock");
 
         System.out.println("Enter the genre of the videogame");
         String genre = scanner.nextLine();
@@ -201,11 +203,10 @@ public class Menu {
         String name = scanner.nextLine();
 
         System.out.println("Enter product price");
-        double price = scanner.nextDouble();
+        double price = readDouble("Price");
 
         System.out.println("Enter the amount of stock of the product");
-        int stock = scanner.nextInt();
-        scanner.nextLine();
+        int stock = readInteger("Stock");
 
         System.out.println("Enter the brand of the console");
         String brand = scanner.nextLine();
@@ -259,8 +260,7 @@ public class Menu {
             System.out.println("0. Back");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
@@ -332,11 +332,10 @@ public class Menu {
         String name = scanner.nextLine();
 
         System.out.print("Enter accessory price: ");
-        double price = scanner.nextDouble();
+        double price = readDouble("Price");
 
         System.out.print("Enter accessory stock: ");
-        int stock = scanner.nextInt();
-        scanner.nextLine();
+        int stock = readInteger("Stock");
 
         System.out.print("Enter connection type: ");
         String connectionType = scanner.nextLine();
@@ -363,14 +362,13 @@ public class Menu {
         String name = scanner.nextLine();
 
         System.out.print("Enter accessory price: ");
-        double price = scanner.nextDouble();
+        double price = readDouble("Price");
 
         System.out.print("Enter accessory stock: ");
-        int stock = scanner.nextInt();
+        int stock = readInteger("Stock");
 
         System.out.print("Enter cable length in meters: ");
-        double lengthMeters = scanner.nextDouble();
-        scanner.nextLine();
+        double lengthMeters = readDouble("Cable length");
 
         System.out.print("Enter connector type: ");
         String connectorType = scanner.nextLine();
@@ -398,14 +396,13 @@ public class Menu {
         String name = scanner.nextLine();
 
         System.out.print("Enter accessory price: ");
-        double price = scanner.nextDouble();
+        double price = readDouble("Price");
 
         System.out.print("Enter accessory stock: ");
-        int stock = scanner.nextInt();
+        int stock = readInteger("Stock");
 
         System.out.print("Enter memory capacity in GB: ");
-        int capacityGB = scanner.nextInt();
-        scanner.nextLine();
+        int capacityGB = readInteger("Memory capacity");
 
         System.out.print("Enter memory type: ");
         String memoryType = scanner.nextLine();
@@ -441,8 +438,7 @@ public class Menu {
         System.out.println("3. Memory");
         System.out.print("Select an accessory type: ");
 
-        int option = scanner.nextInt();
-        scanner.nextLine();
+        int option = readMenuOption();
 
         String type;
 
@@ -518,8 +514,7 @@ public class Menu {
             System.out.println("0. Back");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
@@ -624,8 +619,7 @@ public class Menu {
             System.out.println("0. Back");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
@@ -849,8 +843,7 @@ public class Menu {
             System.out.println("0. Back");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
@@ -897,8 +890,7 @@ public class Menu {
         LocalDate endDate = LocalDate.parse(scanner.nextLine());
 
         System.out.print("Enter discount percentage: ");
-        double percentage = scanner.nextDouble();
-        scanner.nextLine();
+        double percentage = readDouble("Discount percentage");
 
         promotionService.registerPercentageDiscount(
                 id, name, startDate, endDate, percentage
@@ -927,8 +919,7 @@ public class Menu {
         LocalDate endDate = LocalDate.parse(scanner.nextLine());
 
         System.out.print("Enter discount percentage: ");
-        double percentage = scanner.nextDouble();
-        scanner.nextLine();
+        double percentage = readDouble("Discount percentage");
 
         System.out.println("Select category:");
         System.out.println("1. VIDEOGAME");
@@ -936,8 +927,7 @@ public class Menu {
         System.out.println("3. ACCESSORY");
         System.out.print("Option: ");
 
-        int categoryOption = scanner.nextInt();
-        scanner.nextLine();
+        int categoryOption = readMenuOption();
 
         String targetCategory;
 
@@ -988,11 +978,10 @@ public class Menu {
         LocalDate endDate = LocalDate.parse(scanner.nextLine());
 
         System.out.print("Enter minimum quantity: ");
-        int minimumQuantity = scanner.nextInt();
+        int minimumQuantity = readInteger("Minimum quantity");
 
         System.out.print("Enter discount percentage: ");
-        double percentage = scanner.nextDouble();
-        scanner.nextLine();
+        double percentage = readDouble("Discount percentage");
 
         promotionService.registerBulkPurchaseDiscount(
                 id,
@@ -1071,8 +1060,7 @@ public class Menu {
             System.out.println("0. Back");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
@@ -1223,12 +1211,11 @@ public class Menu {
 
         System.out.println("\n===== MONTHLY BALANCE =====");
 
-        System.out.print("Enter month (1-12): ");
-        int month = scanner.nextInt();
+        System.out.print("Enter month: ");
+        int month = readInteger("Month");
 
         System.out.print("Enter year: ");
-        int year = scanner.nextInt();
-        scanner.nextLine();
+        int year = readInteger("Year");
 
         if (month < 1 || month > 12) {
             System.out.println("Invalid month.");
@@ -1279,8 +1266,7 @@ public class Menu {
             System.out.println("0. Back");
             System.out.print("Select an option: ");
 
-            option = scanner.nextInt();
-            scanner.nextLine();
+            option = readMenuOption();
 
             switch (option) {
                 case 1:
@@ -1371,8 +1357,7 @@ public class Menu {
         );
 
         System.out.print("Enter number of days ahead: ");
-        int daysAhead = scanner.nextInt();
-        scanner.nextLine();
+        int daysAhead = readInteger("Days ahead");
 
         try {
             List<Warranty> warranties
@@ -1407,6 +1392,117 @@ public class Menu {
             );
 
             System.out.println("------------------------------");
+        }
+    }
+
+    /**
+     * Executes a menu operation and handles application errors.
+     *
+     * Displays specific messages for validation, business rule, missing
+     * resource, and persistence errors.
+     *
+     * @param operation menu operation to execute
+     */
+    private void executeSafely(Runnable operation) {
+
+        try {
+            operation.run();
+
+        } catch (ResourceNotFoundException e) {
+            System.out.println("Resource not found: " + e.getMessage());
+
+        } catch (BusinessRuleException e) {
+            System.out.println("Business rule error: " + e.getMessage());
+
+        } catch (InvalidDataException e) {
+            System.out.println("Invalid data: " + e.getMessage());
+
+        } catch (PersistenceException e) {
+            System.out.println("Persistence error: " + e.getMessage());
+
+        } catch (IllegalArgumentException e) {
+            System.out.println("Invalid operation: " + e.getMessage());
+            
+        } catch (DateTimeParseException e) {
+            System.out.println(
+                    "Invalid date. Please use the format YYYY-MM-DD."
+            );
+        }
+
+    }
+
+    /**
+     * Reads an integer option from the console.
+     *
+     * Returns -1 when the entered value is not a valid integer.
+     *
+     * @return the entered integer or -1 for invalid input
+     */
+    private int readMenuOption() {
+
+        String input = scanner.nextLine().trim();
+
+        try {
+            return Integer.parseInt(input);
+
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Reads a decimal number from the console.
+     *
+     * Throws InvalidDataException when the entered value is not a valid decimal
+     * number.
+     *
+     * @param fieldName name of the field being entered
+     * @return the entered decimal number
+     * @throws InvalidDataException if the input is not numeric
+     */
+    private double readDouble(String fieldName) {
+
+        String input = scanner.nextLine().trim();
+
+        try {
+            double value = Double.parseDouble(input);
+
+            if (!Double.isFinite(value)) {
+                throw new NumberFormatException();
+            }
+
+            return value;
+
+        } catch (NumberFormatException e) {
+            throw new InvalidDataException(
+                    fieldName,
+                    "must be a valid decimal number"
+            );
+        }
+    }
+
+    /**
+     * Reads an integer number from the console.
+     *
+     * Throws InvalidDataException when the entered value is not a valid
+     * integer.
+     *
+     * @param fieldName name of the field being entered
+     * @return the entered integer
+     * @throws InvalidDataException if the input is not numeric
+     */
+    private int readInteger(String fieldName) {
+
+        String input = scanner.nextLine().trim();
+
+        try {
+            return Integer.parseInt(input);
+
+        } catch (NumberFormatException e) {
+            throw new InvalidDataException(
+                    fieldName,
+                    "must be a valid integer"
+            );
         }
     }
 }
