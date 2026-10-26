@@ -665,27 +665,10 @@ public class Menu {
         System.out.println("Enter seller ID");
         String sellerId = scanner.nextLine();
 
-        List<String> productIds = new ArrayList<>();
-
-        System.out.println("Enter product or accessory IDs one at a time.");
-        System.out.println("Enter 0 when finished.");
-
-        String productId;
-
-        do {
-            System.out.print("Item ID: ");
-            productId = scanner.nextLine();
-
-            if (!productId.equals("0")
-                    && !productIds.contains(productId)) {
-
-                productIds.add(productId);
-
-            } else if (!productId.equals("0")) {
-                System.out.println("Item already selected.");
-            }
-
-        } while (!productId.equals("0"));
+        List<String> productIds = readUniqueItemIds(
+                "Enter product or accessory IDs one at a time.",
+                "Item ID: ",
+                "Item already selected.");
 
         List<String> extendedWarrantyProductIds = new ArrayList<>();
 
@@ -1004,19 +987,7 @@ public class Menu {
 
         List<Promotion> promotions = promotionService.listAllPromotions();
 
-        if (promotions.isEmpty()) {
-            System.out.println("No promotions registered.");
-            return;
-        }
-
-        for (Promotion promotion : promotions) {
-            System.out.println(
-                    "ID: " + promotion.getId()
-                    + " | Name: " + promotion.getName()
-                    + " | Start Date: " + promotion.getStartDate()
-                    + " | End Date: " + promotion.getEndDate()
-            );
-        }
+        displayPromotions(promotions, "No promotions registered.");
     }
 
     /**
@@ -1028,19 +999,7 @@ public class Menu {
 
         List<Promotion> promotions = promotionService.listActivePromotions();
 
-        if (promotions.isEmpty()) {
-            System.out.println("No active promotions.");
-            return;
-        }
-
-        for (Promotion promotion : promotions) {
-            System.out.println(
-                    "ID: " + promotion.getId()
-                    + " | Name: " + promotion.getName()
-                    + " | Start Date: " + promotion.getStartDate()
-                    + " | End Date: " + promotion.getEndDate()
-            );
-        }
+        displayPromotions(promotions, "No active promotions.");
     }
 
     /**
@@ -1097,24 +1056,10 @@ public class Menu {
         System.out.print("Enter sale ID: ");
         String saleId = scanner.nextLine();
 
-        List<String> productIds = new ArrayList<>();
-
-        System.out.println("Enter product IDs to return one at a time.");
-        System.out.println("Enter 0 when finished.");
-
-        String productId;
-
-        do {
-            System.out.print("Product ID: ");
-            productId = scanner.nextLine();
-
-            if (!productId.equals("0") && !productIds.contains(productId)) {
-                productIds.add(productId);
-            } else if (!productId.equals("0")) {
-                System.out.println("Product already selected.");
-            }
-
-        } while (!productId.equals("0"));
+        List<String> productIds = readUniqueItemIds(
+                "Enter product IDs to return one at a time.",
+                "Product ID: ",
+                "Product already selected.");
 
         System.out.print("Enter return reason: ");
         String reason = scanner.nextLine();
@@ -1144,15 +1089,7 @@ public class Menu {
 
         List<Return> returns = returnService.viewAllReturns();
 
-        if (returns.isEmpty()) {
-            System.out.println("No returns registered.");
-            return;
-        }
-
-        for (Return returnRecord : returns) {
-            System.out.println(returnRecord.generateReturnReceipt());
-            System.out.println("------------------------------");
-        }
+        displayReturns(returns, "No returns registered.");
     }
 
     /**
@@ -1168,15 +1105,7 @@ public class Menu {
         List<Return> returns
                 = returnService.viewReturnsByCustomer(customerId);
 
-        if (returns.isEmpty()) {
-            System.out.println("No returns found for this customer.");
-            return;
-        }
-
-        for (Return returnRecord : returns) {
-            System.out.println(returnRecord.generateReturnReceipt());
-            System.out.println("------------------------------");
-        }
+        displayReturns(returns, "No returns found for this customer.");
     }
 
     /**
@@ -1192,15 +1121,7 @@ public class Menu {
         List<Return> returns
                 = returnService.viewReturnsBySale(saleId);
 
-        if (returns.isEmpty()) {
-            System.out.println("No returns found for this sale.");
-            return;
-        }
-
-        for (Return returnRecord : returns) {
-            System.out.println(returnRecord.generateReturnReceipt());
-            System.out.println("------------------------------");
-        }
+        displayReturns(returns, "No returns found for this sale.");
     }
 
     /**
@@ -1391,6 +1312,64 @@ public class Menu {
                     warranty.generateWarrantyCertificate()
             );
 
+            System.out.println("------------------------------");
+        }
+    }
+
+    /**
+     * Reads unique item IDs until the user enters 0.
+     * Keeps the prompts and duplicate messages of each operation.
+     */
+    private List<String> readUniqueItemIds(
+            String instruction, String prompt, String duplicateMessage) {
+
+        List<String> ids = new ArrayList<>();
+        System.out.println(instruction);
+        System.out.println("Enter 0 when finished.");
+
+        String id;
+        do {
+            System.out.print(prompt);
+            id = scanner.nextLine();
+
+            if (!id.equals("0") && !ids.contains(id)) {
+                ids.add(id);
+            } else if (!id.equals("0")) {
+                System.out.println(duplicateMessage);
+            }
+        } while (!id.equals("0"));
+
+        return ids;
+    }
+
+    /** Displays promotions with the appropriate empty-list message. */
+    private void displayPromotions(
+            List<Promotion> promotions, String emptyMessage) {
+
+        if (promotions.isEmpty()) {
+            System.out.println(emptyMessage);
+            return;
+        }
+
+        for (Promotion promotion : promotions) {
+            System.out.println(
+                    "ID: " + promotion.getId()
+                    + " | Name: " + promotion.getName()
+                    + " | Start Date: " + promotion.getStartDate()
+                    + " | End Date: " + promotion.getEndDate()
+            );
+        }
+    }
+
+    /** Displays return receipts with the appropriate empty-list message. */
+    private void displayReturns(List<Return> returns, String emptyMessage) {
+        if (returns.isEmpty()) {
+            System.out.println(emptyMessage);
+            return;
+        }
+
+        for (Return returnRecord : returns) {
+            System.out.println(returnRecord.generateReturnReceipt());
             System.out.println("------------------------------");
         }
     }
