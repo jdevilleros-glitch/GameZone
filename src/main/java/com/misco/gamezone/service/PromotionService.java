@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.service;
 
 import com.misco.gamezone.dao.PromotionDAO;
@@ -54,20 +50,9 @@ public class PromotionService {
                 id, name, startDate, endDate, percentage
         );
 
-        promotions.add(promotion);
-        promotionDAO.saveAll(promotions);
+        registerPromotion(promotion);
     }
 
-    /**
-     * Registers a category discount promotion.
-     *
-     * @param id promotion ID
-     * @param name promotion name
-     * @param startDate promotion start date
-     * @param endDate promotion end date
-     * @param percentage discount percentage
-     * @param targetCategory category to which the discount applies
-     */
     /**
      * Registers a category discount promotion.
      *
@@ -106,8 +91,7 @@ public class PromotionService {
                 targetCategory.toUpperCase()
         );
 
-        promotions.add(promotion);
-        promotionDAO.saveAll(promotions);
+        registerPromotion(promotion);
     }
 
     /**
@@ -129,9 +113,24 @@ public class PromotionService {
             double percentage) {
 
         Promotion promotion = new BulkPurchaseDiscount(
-                id, name, startDate, endDate,
-                minimumQuantity, percentage
+                id,
+                name,
+                startDate,
+                endDate,
+                minimumQuantity,
+                percentage
         );
+
+        registerPromotion(promotion);
+    }
+
+    /**
+     * Adds a promotion to the current collection
+     * and persists the updated collection.
+     *
+     * @param promotion promotion to register
+     */
+    private void registerPromotion(Promotion promotion) {
 
         promotions.add(promotion);
         promotionDAO.saveAll(promotions);
@@ -143,7 +142,9 @@ public class PromotionService {
      * @return list of all registered promotions
      */
     public List<Promotion> listAllPromotions() {
+
         promotions = promotionDAO.loadAll();
+
         return new ArrayList<>(promotions);
     }
 
@@ -160,6 +161,7 @@ public class PromotionService {
         LocalDate today = LocalDate.now();
 
         for (Promotion promotion : promotions) {
+
             if (promotion.isActive(today)) {
                 activePromotions.add(promotion);
             }
@@ -169,22 +171,24 @@ public class PromotionService {
     }
 
     /**
-     * Finds the active promotion that provides the highest monetary discount
-     * for the specified sale.
+     * Finds the active promotion that provides the highest
+     * monetary discount for the specified sale.
      *
      * @param sale sale to evaluate
-     * @return best promotion, or null if no promotion provides a discount
+     * @return best promotion, or null if none applies
      */
     public Promotion findBestPromotionFor(Sale sale) {
 
-        List<Promotion> activePromotions = listActivePromotions();
+        List<Promotion> activePromotions =
+                listActivePromotions();
 
         Promotion bestPromotion = null;
         double highestDiscount = 0;
 
         for (Promotion promotion : activePromotions) {
 
-            double discount = promotion.calculateDiscount(sale);
+            double discount =
+                    promotion.calculateDiscount(sale);
 
             if (discount > highestDiscount) {
                 highestDiscount = discount;
@@ -199,13 +203,14 @@ public class PromotionService {
      * Finds a promotion by its identifier.
      *
      * @param id promotion ID to search for
-     * @return matching promotion, or null if it does not exist
+     * @return matching promotion, or null if not found
      */
     public Promotion findById(String id) {
 
         promotions = promotionDAO.loadAll();
 
         for (Promotion promotion : promotions) {
+
             if (promotion.getId().equals(id)) {
                 return promotion;
             }
