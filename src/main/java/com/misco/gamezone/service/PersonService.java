@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.service;
 
 import com.misco.gamezone.dao.PersonDAO;
@@ -11,6 +7,7 @@ import com.misco.gamezone.model.Customer;
 import com.misco.gamezone.model.Person;
 import com.misco.gamezone.model.Seller;
 import com.misco.gamezone.validation.PersonValidator;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,59 +53,68 @@ public class PersonService {
             String cellphone,
             String email) {
 
-        PersonValidator.validatePersonData(id, name, email, cellphone);
+        PersonValidator.validatePersonData(
+                id,
+                name,
+                email,
+                cellphone
+        );
 
         persons = personDAO.loadPersons();
 
         PersonValidator.validateUniquePerson(persons, id);
 
-        Customer customer = new Customer(name, id, cellphone, email);
+        Customer customer = new Customer(
+                name,
+                id,
+                cellphone,
+                email
+        );
 
         persons.add(customer);
+
         personDAO.savePersons(persons);
     }
 
     /**
      * Returns all customers registered in the system.
      *
-     * Reloads the person list and filters records by the Customer type.
-     *
      * @return a list containing all registered customers
      */
     public List<Customer> listCustomers() {
-
-        persons = personDAO.loadPersons();
-
-        List<Customer> customers = new ArrayList<>();
-
-        for (Person person : persons) {
-            if (person instanceof Customer) {
-                customers.add((Customer) person);
-            }
-        }
-
-        return customers;
+        return listPersonsByType(Customer.class);
     }
 
     /**
      * Returns all sellers registered in the system.
      *
-     * Reloads the person list and filters records by the Seller type.
-     *
      * @return a list containing all registered sellers
      */
     public List<Seller> listSellers() {
+        return listPersonsByType(Seller.class);
+    }
+
+    /**
+     * Loads persons and returns only those matching
+     * the specified subtype.
+     *
+     * @param <T> expected person subtype
+     * @param type class representing the expected subtype
+     * @return list of persons matching the specified type
+     */
+    private <T extends Person> List<T> listPersonsByType(Class<T> type) {
 
         persons = personDAO.loadPersons();
 
-        List<Seller> sellers = new ArrayList<>();
+        List<T> filteredPersons = new ArrayList<>();
 
         for (Person person : persons) {
-            if (person instanceof Seller) {
-                sellers.add((Seller) person);
+
+            if (type.isInstance(person)) {
+                filteredPersons.add(type.cast(person));
             }
         }
 
-        return sellers;
+        return filteredPersons;
     }
 }
