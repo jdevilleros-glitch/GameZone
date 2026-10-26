@@ -103,6 +103,74 @@ public class SaleService {
             List<String> itemIds,
             List<String> extendedWarrantyProductIds) {
 
+        validateSaleRegistration(saleId, date, itemIds);
+
+        List<Person> persons = personDAO.loadPersons();
+        List<Product> products = productDAO.loadProducts();
+
+        Customer customer = requireCustomer(persons, customerId);
+        Seller seller = requireSeller(persons, sellerId);
+
+        ResolvedItems resolved = resolveSaleItems(itemIds, products);
+
+        SaleValidator.validateSaleData(
+                customer,
+                seller,
+                resolved.itemsToSell
+        );
+
+        validateAvailableStock(resolved);
+
+        /*
+         * Create the sale before modifying inventory so that
+         * the applicable promotion can be calculated.
+         */
+        Sale sale = new Sale(
+                saleId.trim(),
+                date,
+                resolved.itemsToSell,
+                customer,
+                seller
+        );
+
+        applyBestPromotion(sale);
+
+        sale.setExtendedWarrantyCost(
+                assignSaleWarranties(
+                        sale,
+                        date,
+                        resolved.itemsToSell,
+                        extendedWarrantyProductIds
+                )
+        );
+
+        sale.calculateFinalTotal();
+
+        updateSoldInventory(resolved, products);
+
+        sales.add(sale);
+        saleDAO.saveSales(sales);
+
+        System.out.println("Sale registered successfully.");
+
+        return true;
+    }
+
+    /**
+     * Validates the initial requirements for registering a sale.
+     *
+     * @param saleId unique sale identifier
+     * @param date sale date
+     * @param itemIds identifiers of the items to be sold
+     * @throws InvalidDataException if the sale ID or date is invalid
+     * @throws BusinessRuleException if the sale has no items
+     * or its identifier already exists
+     */
+    private void validateSaleRegistration(
+            String saleId,
+            Date date,
+            List<String> itemIds) {
+
         if (saleId == null || saleId.trim().isEmpty()) {
             throw new InvalidDataException(
                     "saleId", "Sale ID cannot be empty."
@@ -126,12 +194,21 @@ public class SaleService {
                     "A sale with ID " + saleId + " already exists."
             );
         }
+    }
 
-        List<Person> persons = personDAO.loadPersons();
-        List<Product> products = productDAO.loadProducts();
+    /**
+     * Finds the customer required for a sale.
+     *
+     * @param persons available persons
+     * @param customerId customer identifier
+     * @return the matching customer
+     * @throws ResourceNotFoundException if the customer does not exist
+     */
+    private Customer requireCustomer(
+            List<Person> persons,
+            String customerId) {
 
         Customer customer = findCustomer(persons, customerId);
-        Seller seller = findSeller(persons, sellerId);
 
         if (customer == null) {
             throw new ResourceNotFoundException(
@@ -139,57 +216,119 @@ public class SaleService {
             );
         }
 
+        return customer;
+    }
+
+    /**
+     * Finds the seller required for a sale.
+     *
+     * @param persons available persons
+     * @param sellerId seller identifier
+     * @return the matching seller
+     * @throws ResourceNotFoundException if the seller does not exist
+     */
+    private Seller requireSeller(
+            List<Person> persons,
+            String sellerId) {
+
+        Seller seller = findSeller(persons, sellerId);
+
         if (seller == null) {
             throw new ResourceNotFoundException(
                     "Seller", String.valueOf(sellerId)
             );
         }
 
-        List<Product> itemsToSell = new ArrayList<>();
+        return seller;
+    }
 
-        Map<String, Integer> productCounts = new HashMap<>();
-        Map<String, Integer> accessoryCounts = new HashMap<>();
+    /**
+     * Validates and normalizes an item identifier.
+     *
+     * @param rawId item identifier to validate
+     * @return trimmed item identifier
+     * @throws InvalidDataException if the identifier is null or blank
+     */
+    private String requireValidItemId(String rawId) {
 
-        Map<String, Product> productsById = new HashMap<>();
-        Map<String, Accessory> accessoriesById = new HashMap<>();
+        if (rawId == null || rawId.trim().isEmpty()) {
+            throw new InvalidDataException(
+                    "itemId", "Item ID cannot be empty."
+            );
+        }
+
+        return rawId.trim();
+    }
+
+    /**
+     * Holds the items and count maps resolved during registration.
+     */
+    private static final class ResolvedItems {
+
+        private final List<Product> itemsToSell = new ArrayList<>();
+
+        private final Map<String, Integer> productCounts =
+                new HashMap<>();
+
+        private final Map<String, Integer> accessoryCounts =
+                new HashMap<>();
+
+        private final Map<String, Product> productsById =
+                new HashMap<>();
+
+        private final Map<String, Accessory> accessoriesById =
+                new HashMap<>();
+    }
+
+    /**
+     * Resolves each requested item, preserving order
+     * and duplicate counts.
+     *
+     * @param itemIds requested item identifiers
+     * @param products available products
+     * @return resolved sale items and quantities
+     */
+    private ResolvedItems resolveSaleItems(
+            List<String> itemIds,
+            List<Product> products) {
+
+        ResolvedItems resolved = new ResolvedItems();
 
         for (String rawId : itemIds) {
 
-            if (rawId == null || rawId.trim().isEmpty()) {
-                throw new InvalidDataException(
-                        "itemId", "Item ID cannot be empty."
-                );
-            }
-
-            String itemId = rawId.trim();
+            String itemId = requireValidItemId(rawId);
 
             Product product = findProduct(products, itemId);
 
             if (product != null) {
+
                 String key = product.getId().toLowerCase();
 
-                productCounts.put(
+                resolved.productCounts.put(
                         key,
-                        productCounts.getOrDefault(key, 0) + 1
+                        resolved.productCounts.getOrDefault(key, 0) + 1
                 );
 
-                productsById.put(key, product);
-                itemsToSell.add(product);
+                resolved.productsById.put(key, product);
+                resolved.itemsToSell.add(product);
+
                 continue;
             }
 
             Accessory accessory = accessoryService.findById(itemId);
 
             if (accessory != null) {
+
                 String key = accessory.getId().toLowerCase();
 
-                accessoryCounts.put(
+                resolved.accessoryCounts.put(
                         key,
-                        accessoryCounts.getOrDefault(key, 0) + 1
+                        resolved.accessoryCounts.getOrDefault(key, 0) + 1
                 );
 
-                accessoriesById.put(key, accessory);
-                itemsToSell.add(accessory);
+                resolved.accessoriesById.put(key, accessory);
+                resolved.itemsToSell.add(accessory);
+
                 continue;
             }
 
@@ -198,29 +337,34 @@ public class SaleService {
             );
         }
 
-        SaleValidator.validateSaleData(
-                customer,
-                seller,
-                itemsToSell
-        );
+        return resolved;
+    }
+
+    /**
+     * Validates product and accessory stock
+     * before any inventory changes.
+     *
+     * @param resolved resolved sale items and quantities
+     */
+    private void validateAvailableStock(ResolvedItems resolved) {
 
         for (Map.Entry<String, Integer> entry
-                : productCounts.entrySet()) {
+                : resolved.productCounts.entrySet()) {
 
-            Product product = productsById.get(entry.getKey());
-            int requested = entry.getValue();
+            Product product =
+                    resolved.productsById.get(entry.getKey());
 
             ProductValidator.validateStockAvailability(
                     product,
-                    requested
+                    entry.getValue()
             );
         }
 
         for (Map.Entry<String, Integer> entry
-                : accessoryCounts.entrySet()) {
+                : resolved.accessoryCounts.entrySet()) {
 
-            Accessory accessory
-                    = accessoriesById.get(entry.getKey());
+            Accessory accessory =
+                    resolved.accessoriesById.get(entry.getKey());
 
             int requested = entry.getValue();
 
@@ -231,26 +375,23 @@ public class SaleService {
                 );
             }
         }
+    }
 
-        /*
-         * Create the sale before modifying inventory so that
-         * the applicable promotion can be calculated.
-         */
-        Sale sale = new Sale(
-                saleId.trim(),
-                date,
-                itemsToSell,
-                customer,
-                seller
-        );
+    /**
+     * Applies the best available promotion
+     * using the existing business rules.
+     *
+     * @param sale sale to evaluate
+     */
+    private void applyBestPromotion(Sale sale) {
 
-        Promotion bestPromotion
-                = promotionService.findBestPromotionFor(sale);
+        Promotion bestPromotion =
+                promotionService.findBestPromotionFor(sale);
 
         if (bestPromotion != null) {
 
-            double discount
-                    = bestPromotion.calculateDiscount(sale);
+            double discount =
+                    bestPromotion.calculateDiscount(sale);
 
             sale.setAppliedPromotionName(
                     bestPromotion.getName()
@@ -258,6 +399,24 @@ public class SaleService {
 
             sale.setDiscountAmount(discount);
         }
+    }
+
+    /**
+     * Assigns warranties and returns the total
+     * extended-warranty cost.
+     *
+     * @param sale registered sale
+     * @param date sale date
+     * @param itemsToSell items included in the sale
+     * @param extendedWarrantyProductIds identifiers requiring
+     * extended warranties
+     * @return total cost of extended warranties
+     */
+    private double assignSaleWarranties(
+            Sale sale,
+            Date date,
+            List<Product> itemsToSell,
+            List<String> extendedWarrantyProductIds) {
 
         LocalDate saleDate = date.toInstant()
                 .atZone(ZoneId.systemDefault())
@@ -271,17 +430,14 @@ public class SaleService {
                 continue;
             }
 
-            /*
-             * Every console receives a basic warranty.
-             */
             warrantyService.assignBasicWarranty(
                     product,
                     sale,
                     saleDate
             );
 
-            boolean extendedRequested
-                    = extendedWarrantyProductIds != null
+            boolean extendedRequested =
+                    extendedWarrantyProductIds != null
                     && extendedWarrantyProductIds.stream()
                             .anyMatch(id
                                     -> id != null
@@ -290,29 +446,37 @@ public class SaleService {
 
             if (extendedRequested) {
 
-                ExtendedWarranty extendedWarranty
-                        = warrantyService.assignExtendedWarranty(
+                ExtendedWarranty extendedWarranty =
+                        warrantyService.assignExtendedWarranty(
                                 product,
                                 sale,
                                 saleDate
                         );
 
-                extendedWarrantyCost
-                        += extendedWarranty.getAdditionalCost();
+                extendedWarrantyCost +=
+                        extendedWarranty.getAdditionalCost();
             }
         }
 
-        sale.setExtendedWarrantyCost(
-                extendedWarrantyCost
-        );
+        return extendedWarrantyCost;
+    }
 
-        sale.calculateFinalTotal();
+    /**
+     * Updates sold inventory in the original
+     * product-then-accessory order.
+     *
+     * @param resolved resolved sale items and quantities
+     * @param products available products
+     */
+    private void updateSoldInventory(
+            ResolvedItems resolved,
+            List<Product> products) {
 
         for (Map.Entry<String, Integer> entry
-                : productCounts.entrySet()) {
+                : resolved.productCounts.entrySet()) {
 
-            Product product
-                    = productsById.get(entry.getKey());
+            Product product =
+                    resolved.productsById.get(entry.getKey());
 
             product.setStock(
                     product.getStock() - entry.getValue()
@@ -322,16 +486,16 @@ public class SaleService {
         productDAO.saveProducts(products);
 
         for (Map.Entry<String, Integer> entry
-                : accessoryCounts.entrySet()) {
+                : resolved.accessoryCounts.entrySet()) {
 
-            Accessory accessory
-                    = accessoriesById.get(entry.getKey());
+            Accessory accessory =
+                    resolved.accessoriesById.get(entry.getKey());
 
-            int newStock
-                    = accessory.getStock() - entry.getValue();
+            int newStock =
+                    accessory.getStock() - entry.getValue();
 
-            boolean updated
-                    = accessoryService.updateStock(
+            boolean updated =
+                    accessoryService.updateStock(
                             accessory.getId(),
                             newStock
                     );
@@ -343,13 +507,6 @@ public class SaleService {
                 );
             }
         }
-
-        sales.add(sale);
-
-        saleDAO.saveSales(sales);
-
-        System.out.println("Sale registered successfully.");
-        return true;
     }
 
     /**
