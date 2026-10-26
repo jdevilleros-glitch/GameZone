@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.model;
 
 import java.time.LocalDate;
@@ -9,9 +5,15 @@ import java.time.LocalDate;
 /**
  * Represents a basic six-month warranty with no additional cost.
  *
- * @author USUARIO
+ * GRASP:
+ * - Polymorphism: implements the abstract behavior defined by Warranty.
+ * - High Cohesion: contains only the rules specific to the basic warranty.
  */
 public class BasicWarranty extends Warranty {
+
+    private static final int DURATION_IN_MONTHS = 6;
+    private static final String WARRANTY_TYPE = "Basic Warranty";
+    private static final double ADDITIONAL_COST = 0.0;
 
     public BasicWarranty(String warrantyId, Product product,
             Sale sale, LocalDate startDate) {
@@ -20,16 +22,16 @@ public class BasicWarranty extends Warranty {
 
     @Override
     public int getDurationInMonths() {
-        return 6;
+        return DURATION_IN_MONTHS;
     }
 
     @Override
     public String getWarrantyType() {
-        return "Basic Warranty";
+        return WARRANTY_TYPE;
     }
 
     @Override
     public double getAdditionalCost() {
-        return 0.0;
+        return ADDITIONAL_COST;
     }
 }

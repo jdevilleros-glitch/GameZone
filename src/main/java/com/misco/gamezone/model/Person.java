@@ -1,12 +1,15 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.model;
 
 /**
- * Represents a person or user in the system. Defines the shared attributes of
- * every person in the system.
+ * Represents the common information and behavior of every person
+ * in the GameZone system.
+ *
+ * GRASP:
+ * - Information Expert: manages its own personal information.
+ * - High Cohesion: focuses exclusively on shared person attributes
+ *   and behavior.
+ * - Protected Variations: defines a common abstraction for different
+ *   types of people.
  *
  * @author USUARIO
  */
@@ -29,65 +32,34 @@ public abstract class Person {
         this.cellphone = cellphone;
     }
 
-    /**
-     * Returns the person´s name
-     *
-     * @return the name of the person
-     */
     public String getName() {
         return name;
     }
-
-    /**
-     * Returns the person´s identification code
-     *
-     * @return the id of the person
-     */
 
     public String getId() {
         return id;
     }
 
-    /**
-     * Returns the person´s phone number
-     *
-     * @return the phone number of the person
-     */
     public String getCellphone() {
         return cellphone;
     }
 
-    /**
-     * Sets a new name for the person
-     *
-     * @param name the new name of the person
-     */
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Sets a new id for the person
-     *
-     * @param id the new id of the person
-     */
     public void setId(String id) {
         this.id = id;
     }
 
-    /**
-     * Sets a new phone number for the person
-     *
-     * @param cellphone the new phone number of the person
-     */
     public void setCellphone(String cellphone) {
         this.cellphone = cellphone;
     }
 
     /**
-     * Returns the name of the role that the person has
+     * Returns the role assigned to this type of person.
      *
-     * @return the role of the person
+     * @return the person's role
      */
     public abstract String getRole();
 }
