@@ -83,13 +83,10 @@ public class SaleDAO {
         List<Product> products = productDAO.loadProducts();
         List<Accessory> accessories = accessoryRepository.loadAll();
 
-        SimpleDateFormat dateFormat
-                = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat dateFormat = createDateFormat();
 
-        dateFormat.setLenient(false);
-
-        try (BufferedReader reader
-                = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader =
+                new BufferedReader(new FileReader(file))) {
 
             String line;
 
@@ -101,117 +98,28 @@ public class SaleDAO {
 
                 String[] fields = line.split(";", -1);
 
-                if (fields.length != 5
-                        && fields.length != 7
-                        && fields.length != 9) {
+                if (!hasValidFieldCount(fields)) {
 
                     System.out.println(
                             "Invalid sale record: " + line
                     );
+
                     continue;
                 }
 
                 try {
 
-                    String saleId = fields[0].trim();
-                    String dateText = fields[1].trim();
-                    String customerId = fields[2].trim();
-                    String sellerId = fields[3].trim();
-                    String itemIdsText = fields[4].trim();
-
-                    String promotionName = null;
-                    double discountAmount = 0;
-                    double warrantyCost = 0;
-                    Double persistedTotal = null;
-
-                    if (fields.length >= 7) {
-
-                        promotionName = fields[5].trim().isEmpty()
-                                ? null
-                                : fields[5].trim();
-
-                        discountAmount
-                                = Double.parseDouble(fields[6].trim());
-                    }
-
-                    if (fields.length == 9) {
-
-                        warrantyCost
-                                = Double.parseDouble(fields[7].trim());
-
-                        persistedTotal
-                                = Double.parseDouble(fields[8].trim());
-                    }
-
-                    Date date = dateFormat.parse(dateText);
-
-                    Customer customer
-                            = findCustomer(persons, customerId);
-
-                    Seller seller
-                            = findSeller(persons, sellerId);
-
-                    if (customer == null || seller == null) {
-                        continue;
-                    }
-
-                    List<Product> itemsSold = new ArrayList<>();
-
-                    if (!itemIdsText.isEmpty()) {
-
-                        String[] itemIds = itemIdsText.split(",");
-
-                        for (String rawId : itemIds) {
-
-                            String itemId = rawId.trim();
-
-                            Product item
-                                    = findProduct(products, itemId);
-
-                            if (item == null) {
-                                item = findAccessory(
-                                        accessories,
-                                        itemId
-                                );
-                            }
-
-                            if (item != null) {
-                                itemsSold.add(item);
-                            }
-                        }
-                    }
-
-                    if (itemsSold.isEmpty()) {
-                        continue;
-                    }
-
-                    Sale sale = new Sale(
-                            saleId,
-                            date,
-                            itemsSold,
-                            customer,
-                            seller
+                    Sale sale = parseSaleRecord(
+                            fields,
+                            persons,
+                            products,
+                            accessories,
+                            dateFormat
                     );
 
-                    sale.setAppliedPromotionName(
-                            promotionName
-                    );
-
-                    sale.setDiscountAmount(
-                            discountAmount
-                    );
-
-                    sale.setExtendedWarrantyCost(
-                            warrantyCost
-                    );
-
-                    if (persistedTotal != null) {
-                        sale.setTotal(persistedTotal);
-                    } else {
-                        sale.calculateFinalTotal();
+                    if (sale != null) {
+                        sales.add(sale);
                     }
-
-                    sales.add(sale);
 
                 } catch (ParseException
                         | IllegalArgumentException e) {
@@ -234,6 +142,201 @@ public class SaleDAO {
     }
 
     /**
+     * Creates the date formatter used to read sale records.
+     *
+     * @return a non-lenient date formatter
+     */
+    private SimpleDateFormat createDateFormat() {
+
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd");
+
+        dateFormat.setLenient(false);
+
+        return dateFormat;
+    }
+
+    /**
+     * Checks whether a sale record uses a supported format.
+     *
+     * @param fields fields extracted from the record
+     * @return true if the record contains 5, 7, or 9 fields
+     */
+    private boolean hasValidFieldCount(String[] fields) {
+
+        return fields.length == 5
+                || fields.length == 7
+                || fields.length == 9;
+    }
+
+    /**
+     * Converts a valid-length record into a Sale object.
+     *
+     * Returns null when the referenced customer, seller,
+     * or sale items cannot be resolved.
+     *
+     * @param fields record fields
+     * @param persons registered persons
+     * @param products registered products
+     * @param accessories registered accessories
+     * @param dateFormat date formatter
+     * @return reconstructed sale or null
+     * @throws ParseException if the date cannot be parsed
+     * @throws IllegalArgumentException if numeric data is invalid
+     */
+    private Sale parseSaleRecord(
+            String[] fields,
+            List<Person> persons,
+            List<Product> products,
+            List<Accessory> accessories,
+            SimpleDateFormat dateFormat)
+            throws ParseException {
+
+        String saleId = fields[0].trim();
+        String dateText = fields[1].trim();
+        String customerId = fields[2].trim();
+        String sellerId = fields[3].trim();
+        String itemIdsText = fields[4].trim();
+
+        String promotionName = null;
+        double discountAmount = 0;
+        double warrantyCost = 0;
+        Double persistedTotal = null;
+
+        if (fields.length >= 7) {
+
+            promotionName = fields[5].trim().isEmpty()
+                    ? null
+                    : fields[5].trim();
+
+            discountAmount =
+                    Double.parseDouble(fields[6].trim());
+        }
+
+        if (fields.length == 9) {
+
+            warrantyCost =
+                    Double.parseDouble(fields[7].trim());
+
+            persistedTotal =
+                    Double.parseDouble(fields[8].trim());
+        }
+
+        Date date = dateFormat.parse(dateText);
+
+        Customer customer = findCustomer(persons, customerId);
+        Seller seller = findSeller(persons, sellerId);
+
+        if (customer == null || seller == null) {
+            return null;
+        }
+
+        List<Product> itemsSold = resolveSaleItems(
+                itemIdsText,
+                products,
+                accessories
+        );
+
+        if (itemsSold.isEmpty()) {
+            return null;
+        }
+
+        Sale sale = new Sale(
+                saleId,
+                date,
+                itemsSold,
+                customer,
+                seller
+        );
+
+        restoreSaleValues(
+                sale,
+                promotionName,
+                discountAmount,
+                warrantyCost,
+                persistedTotal
+        );
+
+        return sale;
+    }
+
+    /**
+     * Resolves the products and accessories referenced
+     * by a persisted sale record.
+     *
+     * Preserves item order and repeated identifiers.
+     * Unknown identifiers are ignored.
+     *
+     * @param itemIdsText comma-separated item identifiers
+     * @param products registered products
+     * @param accessories registered accessories
+     * @return resolved items
+     */
+    private List<Product> resolveSaleItems(
+            String itemIdsText,
+            List<Product> products,
+            List<Accessory> accessories) {
+
+        List<Product> itemsSold = new ArrayList<>();
+
+        if (!itemIdsText.isEmpty()) {
+
+            String[] itemIds = itemIdsText.split(",");
+
+            for (String rawId : itemIds) {
+
+                String itemId = rawId.trim();
+
+                Product item = findProduct(products, itemId);
+
+                if (item == null) {
+
+                    item = findAccessory(
+                            accessories,
+                            itemId
+                    );
+                }
+
+                if (item != null) {
+                    itemsSold.add(item);
+                }
+            }
+        }
+
+        return itemsSold;
+    }
+
+    /**
+     * Restores the persisted promotion, warranty,
+     * and total values of a sale.
+     *
+     * @param sale sale to update
+     * @param promotionName persisted promotion name
+     * @param discountAmount persisted discount
+     * @param warrantyCost persisted warranty cost
+     * @param persistedTotal persisted final total
+     */
+    private void restoreSaleValues(
+            Sale sale,
+            String promotionName,
+            double discountAmount,
+            double warrantyCost,
+            Double persistedTotal) {
+
+        sale.setAppliedPromotionName(promotionName);
+
+        sale.setDiscountAmount(discountAmount);
+
+        sale.setExtendedWarrantyCost(warrantyCost);
+
+        if (persistedTotal != null) {
+            sale.setTotal(persistedTotal);
+        } else {
+            sale.calculateFinalTotal();
+        }
+    }
+
+    /**
      * Saves the specified sales to the data file.
      *
      * Stores each sale using the current nine-field format,
@@ -248,56 +351,21 @@ public class SaleDAO {
     public void saveSales(List<Sale> sales) {
 
         File file = new File(filePath);
-        File parent = file.getParentFile();
 
-        if (parent != null && !parent.exists()) {
+        ensureParentDirectoryExists(file);
 
-            if (!parent.mkdirs() && !parent.exists()) {
-                throw new PersistenceException(
-                        "Error creating sales directory: "
-                        + parent.getPath(),
-                        new IOException(
-                                "Could not create directory: "
-                                + parent.getPath()
-                        )
-                );
-            }
-        }
+        SimpleDateFormat dateFormat =
+                new SimpleDateFormat("yyyy-MM-dd");
 
-        SimpleDateFormat dateFormat
-                = new SimpleDateFormat("yyyy-MM-dd");
-
-        try (BufferedWriter writer
-                = new BufferedWriter(new FileWriter(file))) {
+        try (BufferedWriter writer =
+                new BufferedWriter(new FileWriter(file))) {
 
             for (Sale sale : sales) {
 
-                StringBuilder itemIds = new StringBuilder();
-
-                for (Product item : sale.getProductsSold()) {
-
-                    if (itemIds.length() > 0) {
-                        itemIds.append(",");
-                    }
-
-                    itemIds.append(item.getId());
-                }
-
-                String promotionName
-                        = sale.getAppliedPromotionName() == null
-                        ? ""
-                        : sale.getAppliedPromotionName();
-
-                String line
-                        = sale.getSaleId() + ";"
-                        + dateFormat.format(sale.getDate()) + ";"
-                        + sale.getCustomer().getId() + ";"
-                        + sale.getSeller().getId() + ";"
-                        + itemIds + ";"
-                        + promotionName + ";"
-                        + sale.getDiscountAmount() + ";"
-                        + sale.getExtendedWarrantyCost() + ";"
-                        + sale.getTotal();
+                String line = formatSaleRecord(
+                        sale,
+                        dateFormat
+                );
 
                 writer.write(line);
                 writer.newLine();
@@ -310,6 +378,86 @@ public class SaleDAO {
                     e
             );
         }
+    }
+
+    /**
+     * Creates the parent directory when necessary.
+     *
+     * @param file target sales file
+     * @throws PersistenceException if directory creation fails
+     */
+    private void ensureParentDirectoryExists(File file) {
+
+        File parent = file.getParentFile();
+
+        if (parent != null && !parent.exists()) {
+
+            if (!parent.mkdirs() && !parent.exists()) {
+
+                throw new PersistenceException(
+                        "Error creating sales directory: "
+                        + parent.getPath(),
+                        new IOException(
+                                "Could not create directory: "
+                                + parent.getPath()
+                        )
+                );
+            }
+        }
+    }
+
+    /**
+     * Formats a sale using the existing nine-field
+     * persistence format.
+     *
+     * @param sale sale to serialize
+     * @param dateFormat date formatter
+     * @return serialized sale record
+     */
+    private String formatSaleRecord(
+            Sale sale,
+            SimpleDateFormat dateFormat) {
+
+        String itemIds = formatItemIds(
+                sale.getProductsSold()
+        );
+
+        String promotionName =
+                sale.getAppliedPromotionName() == null
+                ? ""
+                : sale.getAppliedPromotionName();
+
+        return sale.getSaleId() + ";"
+                + dateFormat.format(sale.getDate()) + ";"
+                + sale.getCustomer().getId() + ";"
+                + sale.getSeller().getId() + ";"
+                + itemIds + ";"
+                + promotionName + ";"
+                + sale.getDiscountAmount() + ";"
+                + sale.getExtendedWarrantyCost() + ";"
+                + sale.getTotal();
+    }
+
+    /**
+     * Formats sale item identifiers as a comma-separated string.
+     *
+     * @param items items included in the sale
+     * @return comma-separated item identifiers
+     */
+    private String formatItemIds(List<Product> items) {
+
+        StringBuilder itemIds = new StringBuilder();
+
+        for (Product item : items) {
+
+            if (itemIds.length() > 0) {
+                itemIds.append(",");
+            }
+
+            itemIds.append(item.getId());
+        }
+
+        return itemIds.toString();
     }
 
     /**
