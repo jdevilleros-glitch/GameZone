@@ -1,12 +1,12 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.model;
 
 /**
- * Represents a seller in the system. A seller is a person identified by an
- * employee code.
+ * Represents a seller in the GameZone system.
+ *
+ * GRASP:
+ * - Information Expert: manages its own employee information.
+ * - High Cohesion: focuses on seller-specific information.
+ * - Polymorphism: implements the role defined by Person.
  *
  * @author USUARIO
  */
@@ -37,7 +37,7 @@ public class Seller extends Person {
     }
 
     /**
-     * Sets a new employee code for the seller.
+     * Updates the employee code of the seller.
      *
      * @param employeeCode the new employee code of the seller
      */
@@ -46,7 +46,7 @@ public class Seller extends Person {
     }
 
     /**
-     * Returns the role of the seller.
+     * Returns the role assigned to this person.
      *
      * @return the seller role
      */
@@ -54,5 +54,4 @@ public class Seller extends Person {
     public String getRole() {
         return "SELLER";
     }
-
 }

@@ -1,23 +1,23 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.model;
 
 import java.time.LocalDate;
+import java.util.Objects;
 
 /**
  * Represents a warranty associated with a product sold in a sale.
  *
- * @author USUARIO
+ * GRASP:
+ * - Information Expert: manages its own warranty information and validity.
+ * - High Cohesion: contains only responsibilities related to the warranty.
+ * - Polymorphism: delegates duration, type, and additional cost to subclasses.
  */
 public abstract class Warranty {
 
-    private String warrantyId;
-    private Product product;
-    private Sale sale;
-    private LocalDate startDate;
-    private LocalDate endDate;
+    private final String warrantyId;
+    private final Product product;
+    private final Sale sale;
+    private final LocalDate startDate;
+    private final LocalDate endDate;
 
     /**
      * Creates a new warranty.
@@ -29,11 +29,28 @@ public abstract class Warranty {
      */
     public Warranty(String warrantyId, Product product, Sale sale,
             LocalDate startDate) {
+
+        if (warrantyId == null || warrantyId.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "El identificador de la garantía es obligatorio.");
+        }
+
         this.warrantyId = warrantyId;
-        this.product = product;
-        this.sale = sale;
-        this.startDate = startDate;
-        this.endDate = startDate.plusMonths(getDurationInMonths());
+        this.product = Objects.requireNonNull(
+                product, "El producto asociado es obligatorio.");
+        this.sale = Objects.requireNonNull(
+                sale, "La venta asociada es obligatoria.");
+        this.startDate = Objects.requireNonNull(
+                startDate, "La fecha de inicio es obligatoria.");
+
+        int duration = getDurationInMonths();
+
+        if (duration <= 0) {
+            throw new IllegalArgumentException(
+                    "La duración de la garantía debe ser mayor que cero.");
+        }
+
+        this.endDate = startDate.plusMonths(duration);
     }
 
     public String getWarrantyId() {

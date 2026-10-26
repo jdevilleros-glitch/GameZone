@@ -1,13 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.dao;
 
 import com.misco.gamezone.model.BasicWarranty;
 import com.misco.gamezone.model.ExtendedWarranty;
-import com.misco.gamezone.model.Product;
-import com.misco.gamezone.model.Sale;
 import com.misco.gamezone.model.Warranty;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -22,18 +16,21 @@ import java.util.List;
 /**
  * Handles warranty persistence in a CSV file.
  *
- * @author USUARIO
+ * GRASP:
+ * - Pure Fabrication: separates file persistence from the warranty model.
+ * - High Cohesion: concentrates on saving and loading warranty records.
+ * - Protected Variations: isolates file access behind a stable DAO interface.
  */
 public class WarrantyDAO {
 
     private final String filePath;
 
-    /**
-     * Creates a warranty DAO.
-     *
-     * @param filePath warranty file path
-     */
     public WarrantyDAO(String filePath) {
+        if (filePath == null || filePath.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "La ruta del archivo de garantías es obligatoria.");
+        }
+
         this.filePath = filePath;
     }
 
@@ -43,27 +40,31 @@ public class WarrantyDAO {
      * @param warranties warranties to save
      */
     public void saveAll(List<Warranty> warranties) {
-
-        File file = new File(filePath);
-
-        File parent = file.getParentFile();
-
-        if (parent != null && !parent.exists()) {
-            parent.mkdirs();
+        if (warranties == null) {
+            throw new IllegalArgumentException(
+                    "La lista de garantías no puede ser nula.");
         }
 
-        try (BufferedWriter writer
-                = new BufferedWriter(new FileWriter(file))) {
+        File file = new File(filePath);
+        File parent = file.getParentFile();
+
+        if (parent != null && !parent.exists() && !parent.mkdirs()
+                && !parent.exists()) {
+            throw new IllegalStateException(
+                    "No se pudo crear el directorio de garantías.");
+        }
+
+        try (BufferedWriter writer =
+                new BufferedWriter(new FileWriter(file))) {
 
             for (Warranty warranty : warranties) {
+                if (warranty == null) {
+                    continue;
+                }
 
-                String type;
+                String type = getWarrantyTypeCode(warranty);
 
-                if (warranty instanceof BasicWarranty) {
-                    type = "BASIC";
-                } else if (warranty instanceof ExtendedWarranty) {
-                    type = "EXTENDED";
-                } else {
+                if (type == null) {
                     continue;
                 }
 
@@ -79,21 +80,17 @@ public class WarrantyDAO {
             }
 
         } catch (IOException e) {
-            throw new RuntimeException(
-                    "Error saving warranties: "
-                    + e.getMessage(), e
-            );
+            throw new IllegalStateException(
+                    "Error al guardar las garantías.", e);
         }
     }
 
     /**
-     * Loads warranty persistence records without resolving product or sale
-     * references.
+     * Loads warranty records without resolving product or sale references.
      *
      * @return stored warranty records
      */
     public List<WarrantyRecord> loadAll() {
-
         List<WarrantyRecord> records = new ArrayList<>();
         File file = new File(filePath);
 
@@ -101,42 +98,84 @@ public class WarrantyDAO {
             return records;
         }
 
-        try (BufferedReader reader
-                = new BufferedReader(new FileReader(file))) {
+        try (BufferedReader reader =
+                new BufferedReader(new FileReader(file))) {
 
             String line;
 
             while ((line = reader.readLine()) != null) {
-
                 if (line.isBlank()) {
                     continue;
                 }
 
-                String[] data = line.split(";");
+                WarrantyRecord record = parseRecord(line);
 
-                if (data.length != 5) {
-                    continue;
+                if (record != null) {
+                    records.add(record);
                 }
-
-                WarrantyRecord record = new WarrantyRecord(
-                        data[0],
-                        data[1],
-                        data[2],
-                        data[3],
-                        LocalDate.parse(data[4])
-                );
-
-                records.add(record);
             }
 
         } catch (IOException e) {
-            throw new RuntimeException(
-                    "Error loading warranties: "
-                    + e.getMessage(), e
-            );
+            throw new IllegalStateException(
+                    "Error al cargar las garantías.", e);
         }
 
         return records;
+    }
+
+    /**
+     * Determines the persistence code for a warranty subtype.
+     *
+     * @param warranty warranty to classify
+     * @return persistence code or null if unsupported
+     */
+    private String getWarrantyTypeCode(Warranty warranty) {
+        if (warranty instanceof BasicWarranty) {
+            return "BASIC";
+        }
+
+        if (warranty instanceof ExtendedWarranty) {
+            return "EXTENDED";
+        }
+
+        return null;
+    }
+
+    /**
+     * Converts a persisted line into a warranty record.
+     *
+     * @param line line read from the file
+     * @return parsed record, or null if the line is invalid
+     */
+    private WarrantyRecord parseRecord(String line) {
+        String[] data = line.split(";", -1);
+
+        if (data.length != 5) {
+            return null;
+        }
+
+        try {
+            String type = data[0].trim();
+            String warrantyId = data[1].trim();
+            String productId = data[2].trim();
+            String saleId = data[3].trim();
+            LocalDate startDate = LocalDate.parse(data[4].trim());
+
+            if (type.isEmpty() || warrantyId.isEmpty()
+                    || productId.isEmpty() || saleId.isEmpty()) {
+                return null;
+            }
+
+            if (!type.equals("BASIC") && !type.equals("EXTENDED")) {
+                return null;
+            }
+
+            return new WarrantyRecord(
+                    type, warrantyId, productId, saleId, startDate);
+
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
     /**
@@ -150,22 +189,12 @@ public class WarrantyDAO {
         private final String saleId;
         private final LocalDate startDate;
 
-        /**
-         * Creates a warranty persistence record.
-         *
-         * @param type warranty type
-         * @param warrantyId warranty identifier
-         * @param productId product identifier
-         * @param saleId sale identifier
-         * @param startDate warranty start date
-         */
         public WarrantyRecord(
                 String type,
                 String warrantyId,
                 String productId,
                 String saleId,
                 LocalDate startDate) {
-
             this.type = type;
             this.warrantyId = warrantyId;
             this.productId = productId;

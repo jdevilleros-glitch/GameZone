@@ -1,16 +1,17 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.model;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
- * Represents a product return associated with an existing sale. A return
- * contains the products returned by the customer, the reason for the return,
- * and the calculated refund amount.
+ * Represents a product return associated with an existing sale.
+ *
+ * GRASP:
+ * - Information Expert: calculates the refund using information about
+ *   the original sale and returned products.
+ * - High Cohesion: manages the information and calculations of a return.
  *
  * @author USUARIO
  */
@@ -38,111 +39,69 @@ public class Return {
         this.returnId = returnId;
         this.returnDate = returnDate;
         this.originalSale = originalSale;
-        this.returnedProducts = returnedProducts;
+        this.returnedProducts = returnedProducts == null
+                ? new ArrayList<>()
+                : new ArrayList<>(returnedProducts);
         this.reason = reason;
         this.warrantyRefundAmount = 0;
         this.refundAmount = calculateRefundAmount();
     }
 
-    /**
-     * Returns the return identifier.
-     *
-     * @return the return identifier
-     */
     public String getReturnId() {
         return returnId;
     }
 
-    /**
-     * Sets the return identifier.
-     *
-     * @param returnId the new return identifier
-     */
     public void setReturnId(String returnId) {
         this.returnId = returnId;
     }
 
-    /**
-     * Returns the date of the return.
-     *
-     * @return the return date
-     */
     public LocalDate getReturnDate() {
         return returnDate;
     }
 
-    /**
-     * Sets the return date.
-     *
-     * @param returnDate the new return date
-     */
     public void setReturnDate(LocalDate returnDate) {
         this.returnDate = returnDate;
     }
 
-    /**
-     * Returns the original sale associated with this return.
-     *
-     * @return the original sale
-     */
     public Sale getOriginalSale() {
         return originalSale;
     }
 
-    /**
-     * Returns the products included in the return.
-     *
-     * @return the returned products
-     */
     public List<Product> getReturnedProducts() {
-        return returnedProducts;
+        return Collections.unmodifiableList(returnedProducts);
     }
 
-    /**
-     * Sets the products included in the return.
-     *
-     * @param returnedProducts the products to include in the return
-     */
     public void setReturnedProducts(List<Product> returnedProducts) {
-        this.returnedProducts = returnedProducts;
+        this.returnedProducts = returnedProducts == null
+                ? new ArrayList<>()
+                : new ArrayList<>(returnedProducts);
+        this.refundAmount = calculateRefundAmount();
     }
 
-    /**
-     * Returns the reason for the return.
-     *
-     * @return the return reason
-     */
     public String getReason() {
         return reason;
     }
 
-    /**
-     * Sets the reason for the return.
-     *
-     * @param reason the new return reason
-     */
     public void setReason(String reason) {
         this.reason = reason;
     }
 
-    /**
-     * Returns the refund amount.
-     *
-     * @return the refund amount
-     */
     public double getRefundAmount() {
         return refundAmount;
     }
 
     /**
-     * Calculates the refund amount considering the proportional discount
-     * applied to the original sale.
+     * Calculates the refund using the proportional discount from the sale.
      *
      * @return the calculated refund amount
      */
     public double calculateRefundAmount() {
+        double total = warrantyRefundAmount;
 
-        refundAmount = warrantyRefundAmount;
+        if (originalSale == null || returnedProducts == null) {
+            refundAmount = total;
+            return refundAmount;
+        }
 
         double subtotal = originalSale.getSubtotal();
         double discount = originalSale.getDiscountAmount();
@@ -152,52 +111,48 @@ public class Return {
                 : 0;
 
         for (Product product : returnedProducts) {
-
-            double proportionalDiscount
-                    = product.getPrice() * discountRate;
-
-            double itemRefund
-                    = product.getPrice() - proportionalDiscount;
-
-            refundAmount += itemRefund;
+            if (product != null) {
+                double itemPrice = product.getPrice();
+                total += itemPrice - (itemPrice * discountRate);
+            }
         }
 
+        refundAmount = total;
         return refundAmount;
     }
 
     /**
-     * Generates a formatted receipt containing the return details, including
-     * the proportional discount applied to each returned item.
+     * Generates a receipt describing the return and its refund.
      *
-     * @return the formatted return receipt
+     * @return formatted return receipt
      */
     public String generateReturnReceipt() {
-
         StringBuilder receipt = new StringBuilder();
 
         receipt.append("===== RETURN RECEIPT =====")
                 .append("\nReturn ID: ").append(returnId)
                 .append("\nDate: ").append(returnDate)
                 .append("\nOriginal Sale: ")
-                .append(originalSale.getSaleId())
+                .append(originalSale == null ? "N/A" : originalSale.getSaleId())
                 .append("\nReturned Items:");
 
-        double subtotal = originalSale.getSubtotal();
-        double discount = originalSale.getDiscountAmount();
+        double subtotal = originalSale == null ? 0 : originalSale.getSubtotal();
+        double discount = originalSale == null
+                ? 0
+                : originalSale.getDiscountAmount();
 
         double discountRate = subtotal > 0
                 ? discount / subtotal
                 : 0;
 
         for (Product product : returnedProducts) {
+            if (product == null) {
+                continue;
+            }
 
             double originalPrice = product.getPrice();
-
-            double proportionalDiscount
-                    = originalPrice * discountRate;
-
-            double refundedAmount
-                    = originalPrice - proportionalDiscount;
+            double proportionalDiscount = originalPrice * discountRate;
+            double refundedAmount = originalPrice - proportionalDiscount;
 
             receipt.append("\n- ")
                     .append(product.getName())
@@ -210,31 +165,17 @@ public class Return {
         }
 
         receipt.append("\nExtended Warranty Refund: $")
-                .append(warrantyRefundAmount);
-
-        receipt.append("\nReason: ")
-                .append(reason)
-                .append("\nTotal Refund: $")
-                .append(refundAmount);
+                .append(warrantyRefundAmount)
+                .append("\nReason: ").append(reason)
+                .append("\nTotal Refund: $").append(calculateRefundAmount());
 
         return receipt.toString();
     }
 
-    /**
-     * Returns the refundable amount from cancelled extended warranties.
-     *
-     * @return warranty refund amount
-     */
     public double getWarrantyRefundAmount() {
         return warrantyRefundAmount;
     }
 
-    /**
-     * Sets the refundable amount from cancelled extended warranties and
-     * recalculates the total refund.
-     *
-     * @param warrantyRefundAmount refundable warranty amount
-     */
     public void setWarrantyRefundAmount(double warrantyRefundAmount) {
         this.warrantyRefundAmount = warrantyRefundAmount;
         this.refundAmount = calculateRefundAmount();

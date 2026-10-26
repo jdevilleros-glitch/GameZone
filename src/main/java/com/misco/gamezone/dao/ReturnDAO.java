@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.dao;
 
 import com.misco.gamezone.model.Accessory;
@@ -19,63 +15,70 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Handles the persistence of return data in a CSV file. It reconstructs the
- * relationships between returns, sales, and products.
+ * Handles persistence and reconstruction of return records.
+ *
+ * GRASP:
+ * - Pure Fabrication: isolates file persistence from domain entities.
+ * - Low Coupling: delegates sales, products, and accessories retrieval
+ *   to their respective data access components.
+ * - High Cohesion: focuses on loading and saving return records.
  *
  * @author USUARIO
  */
 public class ReturnDAO {
 
-    private final String filePath;
-    private SaleDAO saleDAO;
-    private ProductDAO productDAO;
+    private final Path filePath;
+    private final SaleDAO saleDAO;
+    private final ProductDAO productDAO;
     private final AccessoryRepository accessoryRepository;
 
-    /**
-     * Creates a ReturnDAO with the dependencies required to reconstruct
-     * returned products and accessories.
-     *
-     * @param filePath path of the returns data file
-     * @param saleDAO DAO used to retrieve sale information
-     * @param productDAO DAO used to retrieve product information
-     * @param accessoryRepository repository used to retrieve accessories
-     */
     public ReturnDAO(
             String filePath,
             SaleDAO saleDAO,
             ProductDAO productDAO,
             AccessoryRepository accessoryRepository) {
 
-        this.filePath = filePath;
+        if (filePath == null || filePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("File path cannot be empty.");
+        }
+
+        if (saleDAO == null || productDAO == null
+                || accessoryRepository == null) {
+            throw new IllegalArgumentException(
+                    "DAO and repository dependencies cannot be null.");
+        }
+
+        this.filePath = Path.of(filePath);
         this.saleDAO = saleDAO;
         this.productDAO = productDAO;
         this.accessoryRepository = accessoryRepository;
     }
 
     /**
-     * Loads all returns stored in the data file.
+     * Loads all persisted return records.
      *
-     * @return a list containing the stored returns
+     * @return loaded returns
      */
     public List<Return> loadAll() {
         List<Return> returns = new ArrayList<>();
 
-        Path path = Path.of(filePath);
-
-        if (!Files.exists(path)) {
+        if (!Files.exists(filePath)) {
             return returns;
         }
 
         List<Sale> sales = saleDAO.loadSales();
         List<Product> products = productDAO.loadProducts();
-        List<Accessory> accessories
-                = accessoryRepository.loadAll();
+        List<Accessory> accessories = accessoryRepository.loadAll();
 
-        try (BufferedReader reader = Files.newBufferedReader(path)) {
+        try (BufferedReader reader = Files.newBufferedReader(filePath)) {
             String line;
 
             while ((line = reader.readLine()) != null) {
+                try {
+                    Return returnRecord = parseReturn(
+                            line, sales, products, accessories);
 
+<<<<<<< Updated upstream
                 String[] data = line.split(";");
 
                 if (data.length != 6) {
@@ -94,8 +97,15 @@ public class ReturnDAO {
                     if (sale.getSaleId().equals(saleId)) {
                         originalSale = sale;
                         break;
+=======
+                    if (returnRecord != null) {
+                        returns.add(returnRecord);
+>>>>>>> Stashed changes
                     }
+                } catch (RuntimeException ex) {
+                    // Ignore malformed records and continue loading.
                 }
+<<<<<<< Updated upstream
 
                 if (originalSale == null) {
                     continue;
@@ -144,43 +154,158 @@ public class ReturnDAO {
                 );
 
                 returns.add(returnRecord);
+=======
+>>>>>>> Stashed changes
             }
-
-        } catch (IOException e) {
-            System.out.println("Error reading returns file");
+        } catch (IOException ex) {
+            throw new IllegalStateException(
+                    "Unable to read returns file: " + filePath, ex);
         }
 
         return returns;
     }
 
     /**
-     * Saves all returns to the data file.
+     * Reconstructs a return from a persisted record.
      *
-     * @param returns list of returns to save
+     * @param line persisted line
+     * @param sales available sales
+     * @param products available products
+     * @param accessories available accessories
+     * @return reconstructed return, or null if its relationships are missing
      */
-    public void saveAll(List<Return> returns) {
-        Path path = Path.of(filePath);
+    private Return parseReturn(
+            String line,
+            List<Sale> sales,
+            List<Product> products,
+            List<Accessory> accessories) {
 
-        try {
-            if (path.getParent() != null) {
-                Files.createDirectories(path.getParent());
+        String[] data = line.split(";", -1);
+
+        if (data.length != 6 && data.length != 7) {
+            return null;
+        }
+
+        String returnId = data[0];
+        LocalDate returnDate = LocalDate.parse(data[1]);
+        String saleId = data[2];
+        String reason = data[4];
+
+        double warrantyRefundAmount = data.length == 7
+                ? Double.parseDouble(data[6])
+                : 0.0;
+
+        Sale originalSale = findSale(saleId, sales);
+
+        if (originalSale == null) {
+            return null;
+        }
+
+        List<Product> returnedProducts = findReturnedProducts(
+                data[3], products, accessories);
+
+        if (returnedProducts.isEmpty()) {
+            return null;
+        }
+
+        Return returnRecord = new Return(
+                returnId,
+                returnDate,
+                originalSale,
+                returnedProducts,
+                reason);
+
+        returnRecord.setWarrantyRefundAmount(warrantyRefundAmount);
+
+        return returnRecord;
+    }
+
+    private Sale findSale(String saleId, List<Sale> sales) {
+        for (Sale sale : sales) {
+            if (sale != null && sale.getSaleId() != null
+                    && sale.getSaleId().equals(saleId)) {
+                return sale;
+            }
+        }
+
+        return null;
+    }
+
+    private List<Product> findReturnedProducts(
+            String productIds,
+            List<Product> products,
+            List<Accessory> accessories) {
+
+        List<Product> result = new ArrayList<>();
+
+        if (productIds == null || productIds.isEmpty()) {
+            return result;
+        }
+
+        String[] ids = productIds.split(",");
+
+        for (String id : ids) {
+            Product product = findProduct(id, products);
+
+            if (product == null) {
+                product = findAccessory(id, accessories);
             }
 
-            try (BufferedWriter writer = Files.newBufferedWriter(path)) {
+            if (product != null) {
+                result.add(product);
+            }
+        }
 
+        return result;
+    }
+
+    private Product findProduct(String id, List<Product> products) {
+        for (Product product : products) {
+            if (product != null && product.getId() != null
+                    && product.getId().equalsIgnoreCase(id)) {
+                return product;
+            }
+        }
+
+        return null;
+    }
+
+    private Accessory findAccessory(
+            String id, List<Accessory> accessories) {
+
+        for (Accessory accessory : accessories) {
+            if (accessory != null && accessory.getId() != null
+                    && accessory.getId().equalsIgnoreCase(id)) {
+                return accessory;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Saves all returns to the data file.
+     *
+     * @param returns returns to persist
+     */
+    public void saveAll(List<Return> returns) {
+        if (returns == null) {
+            throw new IllegalArgumentException("Returns list cannot be null.");
+        }
+
+        try {
+            if (filePath.getParent() != null) {
+                Files.createDirectories(filePath.getParent());
+            }
+
+            try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
                 for (Return returnRecord : returns) {
-
-                    String productIds = "";
-
-                    for (Product product : returnRecord.getReturnedProducts()) {
-
-                        if (!productIds.isEmpty()) {
-                            productIds += ",";
-                        }
-
-                        productIds += product.getId();
+                    if (returnRecord == null
+                            || returnRecord.getOriginalSale() == null) {
+                        continue;
                     }
 
+<<<<<<< Updated upstream
                     String line = returnRecord.getReturnId() + ";"
                             + returnRecord.getReturnDate() + ";"
                             + returnRecord.getOriginalSale().getSaleId() + ";"
@@ -189,12 +314,45 @@ public class ReturnDAO {
                             + returnRecord.getRefundAmount();
 
                     writer.write(line);
+=======
+                    writer.write(formatReturn(returnRecord));
+>>>>>>> Stashed changes
                     writer.newLine();
                 }
             }
-
-        } catch (IOException e) {
-            System.out.println("Error saving returns file");
+        } catch (IOException ex) {
+            throw new IllegalStateException(
+                    "Unable to save returns file: " + filePath, ex);
         }
+    }
+
+    /**
+     * Converts a return into the existing semicolon-separated format.
+     *
+     * @param returnRecord return to format
+     * @return serialized return record
+     */
+    private String formatReturn(Return returnRecord) {
+        StringBuilder productIds = new StringBuilder();
+
+        for (Product product : returnRecord.getReturnedProducts()) {
+            if (product == null) {
+                continue;
+            }
+
+            if (productIds.length() > 0) {
+                productIds.append(",");
+            }
+
+            productIds.append(product.getId());
+        }
+
+        return returnRecord.getReturnId() + ";"
+                + returnRecord.getReturnDate() + ";"
+                + returnRecord.getOriginalSale().getSaleId() + ";"
+                + productIds + ";"
+                + returnRecord.getReason() + ";"
+                + returnRecord.getRefundAmount() + ";"
+                + returnRecord.getWarrantyRefundAmount();
     }
 }

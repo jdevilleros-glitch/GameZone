@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.model;
 
 import java.time.LocalDate;
@@ -9,9 +5,16 @@ import java.time.LocalDate;
 /**
  * Represents a twelve-month extended warranty.
  *
- * @author USUARIO
+ * GRASP:
+ * - Polymorphism: implements the behavior defined by Warranty.
+ * - Information Expert: calculates the additional cost using the product price.
+ * - High Cohesion: contains only rules specific to the extended warranty.
  */
 public class ExtendedWarranty extends Warranty {
+
+    private static final int DURATION_IN_MONTHS = 12;
+    private static final String WARRANTY_TYPE = "Extended warranty";
+    private static final double ADDITIONAL_COST_RATE = 0.10;
 
     public ExtendedWarranty(String warrantyId, Product product,
             Sale sale, LocalDate startDate) {
@@ -20,16 +23,16 @@ public class ExtendedWarranty extends Warranty {
 
     @Override
     public int getDurationInMonths() {
-        return 12;
+        return DURATION_IN_MONTHS;
     }
 
     @Override
     public String getWarrantyType() {
-        return "Extended warranty";
+        return WARRANTY_TYPE;
     }
 
     @Override
     public double getAdditionalCost() {
-        return getProduct().getPrice() * 0.10;
+        return getProduct().getPrice() * ADDITIONAL_COST_RATE;
     }
 }
