@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package com.misco.gamezone.service;
 
 import com.misco.gamezone.dao.ProductDAO;
@@ -43,16 +39,12 @@ public class ProductService {
     /**
      * Registers a new videogame and saves the updated product list.
      *
-     * Validates product information and prevents duplicate identifiers.
-     *
-     * @param id unique identifier of the videogame
-     * @param name name of the videogame
-     * @param price price of the videogame
-     * @param stock initial available quantity
-     * @param genre genre of the videogame
-     * @param platform platform supported by the videogame
-     * @throws InvalidDataException if product information is invalid
-     * @throws BusinessRuleException if the identifier already exists
+     * @param id unique identifier
+     * @param name videogame name
+     * @param price videogame price
+     * @param stock initial stock
+     * @param genre videogame genre
+     * @param platform supported platform
      */
     public void registerVideoGame(
             String id,
@@ -62,7 +54,10 @@ public class ProductService {
             String genre,
             String platform) {
 
-        ProductValidator.validateProductData(id, name, price, stock);
+        ProductValidator.validateProductData(
+                id, name, price, stock
+        );
+
         validateUniqueProductId(id);
 
         Videogame videoGame = new Videogame(
@@ -76,16 +71,12 @@ public class ProductService {
     /**
      * Registers a new console and saves the updated product list.
      *
-     * Validates product information and prevents duplicate identifiers.
-     *
-     * @param id unique identifier of the console
-     * @param name name of the console
-     * @param price price of the console
-     * @param stock initial available quantity
-     * @param brand brand of the console
-     * @param model model of the console
-     * @throws InvalidDataException if product information is invalid
-     * @throws BusinessRuleException if the identifier already exists
+     * @param id unique identifier
+     * @param name console name
+     * @param price console price
+     * @param stock initial stock
+     * @param brand console brand
+     * @param model console model
      */
     public void registerConsole(
             String id,
@@ -95,7 +86,10 @@ public class ProductService {
             String brand,
             String model) {
 
-        ProductValidator.validateProductData(id, name, price, stock);
+        ProductValidator.validateProductData(
+                id, name, price, stock
+        );
+
         validateUniqueProductId(id);
 
         Console console = new Console(
@@ -107,106 +101,106 @@ public class ProductService {
     }
 
     /**
-     * Returns the registered products.
+     * Reloads and returns the registered products.
      *
-     * Reloads the products from persistent storage and returns
-     * a copy of the product list.
-     *
-     * @return a copy of the registered product list
+     * @return copy of the registered products
      */
     public List<Product> listProducts() {
+
         products = productDAO.loadProducts();
+
         return new ArrayList<>(products);
     }
 
     /**
      * Updates the stock of an existing product.
      *
-     * The new stock quantity must be zero or greater.
-     *
-     * @param productId unique identifier of the product
-     * @param newStock new available quantity
-     * @return true if the product was updated, false if not found
-     * @throws InvalidDataException if the new stock is negative
+     * @param productId product identifier
+     * @param newStock new stock quantity
+     * @return true if updated, false if not found
      */
-    public boolean updateStock(String productId, int newStock) {
+    public boolean updateStock(
+            String productId,
+            int newStock) {
 
         if (newStock < 0) {
             throw new InvalidDataException(
-                    "stock", "Stock cannot be negative."
+                    "stock",
+                    "Stock cannot be negative."
             );
         }
 
         products = productDAO.loadProducts();
 
-        for (Product product : products) {
-            if (product.getId().equals(productId)) {
-                product.setStock(newStock);
-                productDAO.saveProducts(products);
-                return true;
-            }
+        Product product = findProductInCurrentList(productId);
+
+        if (product == null) {
+            return false;
         }
 
-        return false;
+        product.setStock(newStock);
+
+        saveCurrentProducts();
+
+        return true;
     }
 
     /**
-     * Restores stock for a product by increasing its current quantity.
+     * Restores stock for an existing product.
      *
-     * Validates that the restored quantity is positive and prevents
-     * integer overflow when calculating the new stock.
-     *
-     * @param productId unique identifier of the product
+     * @param productId product identifier
      * @param quantity quantity to restore
-     * @return true if stock was restored, false if not found
-     * @throws InvalidDataException if the quantity is not positive
-     * @throws BusinessRuleException if the resulting stock exceeds
-     * the maximum allowed integer value
+     * @return true if restored, false if not found
      */
-    public boolean restoreStock(String productId, int quantity) {
+    public boolean restoreStock(
+            String productId,
+            int quantity) {
 
         if (quantity <= 0) {
             throw new InvalidDataException(
-                    "quantity", "Restored quantity must be greater than zero."
+                    "quantity",
+                    "Restored quantity must be greater than zero."
             );
         }
 
         products = productDAO.loadProducts();
 
-        for (Product product : products) {
-            if (product.getId().equals(productId)) {
+        Product product = findProductInCurrentList(productId);
 
-                long restoredStock = (long) product.getStock() + quantity;
-
-                if (restoredStock > Integer.MAX_VALUE) {
-                    throw new BusinessRuleException(
-                            "Restored stock exceeds the maximum allowed quantity."
-                    );
-                }
-
-                product.setStock((int) restoredStock);
-                productDAO.saveProducts(products);
-                return true;
-            }
+        if (product == null) {
+            return false;
         }
 
-        return false;
+        long restoredStock =
+                (long) product.getStock() + quantity;
+
+        if (restoredStock > Integer.MAX_VALUE) {
+            throw new BusinessRuleException(
+                    "Restored stock exceeds the maximum allowed quantity."
+            );
+        }
+
+        product.setStock((int) restoredStock);
+
+        saveCurrentProducts();
+
+        return true;
     }
 
     /**
      * Finds a product by its identifier.
      *
-     * Performs a case-insensitive search and preserves the original
-     * behavior of returning null when the product does not exist.
+     * Uses a case-insensitive comparison.
      *
      * @param productId product identifier
-     * @return matching product or null if not found
+     * @return matching product or null
      */
     public Product findProductById(String productId) {
 
         products = productDAO.loadProducts();
 
         for (Product product : products) {
+
             if (product.getId().equalsIgnoreCase(productId)) {
                 return product;
             }
@@ -216,19 +210,47 @@ public class ProductService {
     }
 
     /**
-     * Validates that a product identifier is not already registered.
+     * Finds a product in the currently loaded list.
      *
-     * Performs a case-insensitive comparison to prevent duplicate IDs.
+     * Preserves the case-sensitive comparison used by
+     * stock update and restoration operations.
+     *
+     * @param productId product identifier
+     * @return matching product or null
+     */
+    private Product findProductInCurrentList(String productId) {
+
+        for (Product product : products) {
+
+            if (product.getId().equals(productId)) {
+                return product;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Persists the currently loaded product list.
+     */
+    private void saveCurrentProducts() {
+        productDAO.saveProducts(products);
+    }
+
+    /**
+     * Validates that a product identifier is unique.
      *
      * @param id identifier to validate
-     * @throws BusinessRuleException if the identifier already exists
+     * @throws BusinessRuleException if the ID already exists
      */
     private void validateUniqueProductId(String id) {
 
         products = productDAO.loadProducts();
 
         for (Product product : products) {
+
             if (product.getId().equalsIgnoreCase(id)) {
+
                 throw new BusinessRuleException(
                         "A product with ID " + id + " already exists."
                 );
